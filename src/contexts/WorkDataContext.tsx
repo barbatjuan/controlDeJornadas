@@ -11,6 +11,7 @@ interface IWorkDataContext {
   getWorkDay: (date: string) => WorkDay | undefined;
   getMonthStats: (year: number, month: number) => MonthStats;
   getTotalInvoiced: () => number;
+  getTotalPending: () => number;
 }
 
 // 2. Crear el Contexto
@@ -71,6 +72,12 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     return workDays.find(w => w.date === date);
   };
 
+  const getTotalPending = () => {
+    return workDays
+      .filter(wd => wd.status === 'pending')
+      .reduce((acc, wd) => acc + wd.amount, 0);
+  };
+
   const getTotalInvoiced = () => {
     return workDays
       .filter(wd => wd.status === 'invoiced')
@@ -106,6 +113,7 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     getMonthStats,
     getWorkDay,
     getTotalInvoiced,
+    getTotalPending,
   };
 
   return <WorkDataContext.Provider value={value}>{children}</WorkDataContext.Provider>;
