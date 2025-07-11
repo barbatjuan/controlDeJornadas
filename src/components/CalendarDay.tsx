@@ -70,26 +70,46 @@ export const CalendarDay: React.FC<CalendarDayProps> = ({
         ${isSelected && isMultiSelectMode ? 'ring-2 ring-blue-400 dark:ring-tokyo-blue' : ''}
       `}
     >
-      {/* Date */}
+      {/* Date and Status Icons Row */}
       <div className={`
-        text-xs sm:text-sm font-semibold mb-1 sm:mb-2
-        ${isCurrentMonth ? 'text-gray-800 dark:text-tokyo-fg' : 'text-gray-400 dark:text-tokyo-comment'}
-        ${isToday ? 'text-blue-600 dark:text-tokyo-cyan' : ''}
+        flex justify-between items-center mb-1 sm:mb-2
       `}>
-        {date.getDate()}
+        {/* Date */}
+        <div className={`
+          text-xs sm:text-sm font-semibold
+          ${isCurrentMonth ? 'text-gray-800 dark:text-tokyo-fg' : 'text-gray-400 dark:text-tokyo-comment'}
+          ${isToday ? 'text-blue-600 dark:text-tokyo-cyan' : ''}
+        `}>
+          {date.getDate()}
+        </div>
+
+        {/* Icons container - aligned to the right */}
+        <div className="flex items-center gap-0.5 sm:gap-1">
+          {/* Status icon */}
+          {workDay && isLoaded && getStatusIcon()}
+
+          {/* Today indicator */}
+          {isToday && (
+            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 dark:bg-tokyo-cyan rounded-full animate-pulse-slow"></div>
+          )}
+          
+          {/* Multi-select indicator */}
+          {isSelected && isMultiSelectMode && (
+            <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-blue-500 dark:bg-tokyo-blue rounded-full flex items-center justify-center">
+              <Check className="w-1 h-1 sm:w-1.5 sm:h-1.5 text-white" />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Work day info */}
       {workDay && isLoaded && (
         <div className="space-y-0.5 sm:space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-0.5 sm:gap-1">
-              <DollarSign className="w-2 h-2 sm:w-3 sm:h-3 text-gray-700 dark:text-tokyo-yellow" />
-              <span className="text-xs font-bold text-gray-800 dark:text-tokyo-fg">
-                €{workDay.amount.toFixed(0)}
-              </span>
-            </div>
-            {getStatusIcon()}
+          <div className="flex items-center gap-0.5 sm:gap-1">
+            <DollarSign className="w-2 h-2 sm:w-3 sm:h-3 text-gray-700 dark:text-tokyo-yellow" />
+            <span className="text-xs font-bold text-gray-800 dark:text-tokyo-fg">
+              €{workDay.amount.toFixed(0)}
+            </span>
           </div>
           
           {workDay.account && (
@@ -103,18 +123,6 @@ export const CalendarDay: React.FC<CalendarDayProps> = ({
               {workDay.notes}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Today indicator */}
-      {isToday && (
-        <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 dark:bg-tokyo-cyan rounded-full animate-pulse-slow"></div>
-      )}
-
-      {/* Multi-select indicator */}
-      {isSelected && isMultiSelectMode && (
-        <div className="absolute top-0.5 left-0.5 sm:top-1 sm:left-1 w-3 h-3 sm:w-4 sm:h-4 bg-blue-500 dark:bg-tokyo-blue rounded-full flex items-center justify-center">
-          <Check className="w-1.5 h-1.5 sm:w-2 sm:h-2 text-white" />
         </div>
       )}
 
