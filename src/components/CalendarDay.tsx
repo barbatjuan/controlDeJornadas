@@ -120,3 +120,4 @@ export const CalendarDay: React.FC<CalendarDayProps> = ({
   );
 };
 export default CalendarDay;
+// Force git to recognize changes
