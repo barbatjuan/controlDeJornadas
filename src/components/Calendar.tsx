@@ -14,7 +14,7 @@ const Calendar: React.FC = () => {
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   
-  const { workDays, isLoaded, getMonthStats } = useWorkData();
+  const { workDays, isLoaded, getMonthStats, getTotalInvoiced } = useWorkData();
 
   // Stats Calculation
   const currentMonthStats = getMonthStats(currentDate.getFullYear(), currentDate.getMonth());
@@ -22,6 +22,7 @@ const Calendar: React.FC = () => {
   const prevMonthDate = new Date(currentDate);
   prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
   const prevMonthStats = getMonthStats(prevMonthDate.getFullYear(), prevMonthDate.getMonth());
+  const totalInvoicedAmount = getTotalInvoiced ? getTotalInvoiced() : 0;
 
   const StatsCard = ({ title, value, colorClass = 'text-tokyo-blue' }: { title: string, value: string, colorClass?: string }) => (
     <div className="bg-white dark:bg-tokyo-bgHighlight p-4 rounded-lg shadow-md text-center">
@@ -124,7 +125,7 @@ const Calendar: React.FC = () => {
               setSelectedDate(new Date());
               setIsModalOpen(true);
             }}
-            className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-tokyo-green text-white rounded-lg hover:bg-tokyo-green/90 transition-colors text-xs sm:text-sm lg:text-base"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-tokyo-green text-tokyo-blue font-semibold rounded-lg hover:bg-tokyo-green/90 transition-colors text-xs sm:text-sm lg:text-base"
           >
             <Plus size={14} />
             <span className="hidden sm:inline">Añadir Día</span>
@@ -170,13 +171,13 @@ const Calendar: React.FC = () => {
             colorClass="text-tokyo-green"
           />
           <StatsCard 
-            title="Pendiente" 
+            title="Por Facturar (Mes)" 
             value={`€${currentMonthStats.pendingAmount.toFixed(2)}`} 
             colorClass="text-tokyo-orange"
           />
           <StatsCard 
-            title="Facturado" 
-            value={`€${currentMonthStats.invoicedAmount.toFixed(2)}`} 
+            title="Facturado (Total)" 
+            value={`€${totalInvoicedAmount.toFixed(2)}`} 
             colorClass="text-tokyo-blue"
           />
           <StatsCard 

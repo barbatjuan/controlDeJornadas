@@ -93,10 +93,12 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
   const value = {
     workDays,
     isLoaded,
+    fetchWorkDays,
     addOrUpdateWorkDays,
-    removeWorkDay,
-    getWorkDay,
+    deleteWorkDay,
     getMonthStats,
+    getWorkDay,
+    getTotalInvoiced,
   };
 
   return <WorkDataContext.Provider value={value}>{children}</WorkDataContext.Provider>;
