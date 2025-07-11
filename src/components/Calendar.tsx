@@ -24,8 +24,8 @@ const Calendar: React.FC = () => {
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
   ];
 
-  const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-  const dayNamesShort = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+  const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const dayNamesShort = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     setCurrentDate(prev => {

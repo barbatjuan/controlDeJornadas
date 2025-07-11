@@ -16,25 +16,34 @@ export const getMonthName = (date: Date): string => {
   return date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
 };
 
-export const getDaysInMonth = (year: number, month: number): Date[] => {
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
+export const getDaysInMonth = (year: number, month: number) => {
   const days: Date[] = [];
+  const date = new Date(Date.UTC(year, month, 1));
   
-  // Add empty days for the beginning of the month
-  const firstDayOfWeek = firstDay.getDay();
-  const adjustedFirstDay = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
-  
-  for (let i = 0; i < adjustedFirstDay; i++) {
-    days.push(new Date(year, month, 1 - adjustedFirstDay + i));
+  // Find the first day of the month (0 for Sunday, 1 for Monday, etc.)
+  const firstDayOfWeek = date.getUTCDay();
+  // Adjust to make Monday the first day of the week (0 for Monday, 6 for Sunday)
+  const startOffset = (firstDayOfWeek === 0) ? 6 : firstDayOfWeek - 1;
+
+  // Add days from the previous month
+  for (let i = 0; i < startOffset; i++) {
+    days.push(new Date(Date.UTC(year, month, 1 - startOffset + i)));
+  }
+
+  // Add all days from the current month
+  while (date.getUTCMonth() === month) {
+    days.push(new Date(date));
+    date.setUTCDate(date.getUTCDate() + 1);
+  }
+
+  // Add days from the next month to fill the grid (usually 42 cells for 6 weeks)
+  while (days.length < 42) {
+    days.push(new Date(date));
+    date.setUTCDate(date.getUTCDate() + 1);
   }
   
-  // Add all days of the month
-  for (let day = 1; day <= lastDay.getDate(); day++) {
-    days.push(new Date(year, month, day));
-  }
-  
-  return days;
+  // Ensure we don't have more than 42 days if a month fits perfectly in 5 weeks
+  return days.slice(0, 42);
 };
 
 export const isToday = (date: Date): boolean => {
