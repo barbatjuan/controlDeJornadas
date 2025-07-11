@@ -102,7 +102,7 @@ export const useWorkData = () => {
 
   return {
     workDays,
-    addWorkDay,
+    addOrUpdateWorkDays,
     removeWorkDay,
     getWorkDay,
     getMonthStats,
