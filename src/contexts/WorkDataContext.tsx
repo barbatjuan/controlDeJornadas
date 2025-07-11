@@ -10,6 +10,7 @@ interface IWorkDataContext {
   removeWorkDay: (date: string) => Promise<void>;
   getWorkDay: (date: string) => WorkDay | undefined;
   getMonthStats: (year: number, month: number) => MonthStats;
+  getTotalInvoiced: () => number;
 }
 
 // 2. Crear el Contexto
@@ -95,7 +96,7 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     isLoaded,
     fetchWorkDays,
     addOrUpdateWorkDays,
-    deleteWorkDay,
+    removeWorkDay,
     getMonthStats,
     getWorkDay,
     getTotalInvoiced,

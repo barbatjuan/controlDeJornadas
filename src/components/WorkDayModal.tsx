@@ -23,7 +23,7 @@ const ACCOUNTS = [
 ];
 
 export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates, onClose }) => {
-  const { addOrUpdateWorkDays, getWorkDay } = useWorkData();
+  const { addOrUpdateWorkDays, getWorkDay, removeWorkDay } = useWorkData();
   const [formData, setFormData] = useState({
     amount: '',
     status: 'pending' as WorkDayStatus,
@@ -102,9 +102,9 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
     onClose();
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (existingWorkDay && confirm('¿Estás seguro de que quieres eliminar este día de trabajo?')) {
-      removeWorkDay(dateString);
+      await removeWorkDay(dateString);
       onClose();
     }
   };
