@@ -14,7 +14,7 @@ const Calendar: React.FC = () => {
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   
-  const { getWorkDay, isLoaded } = useWorkData();
+  const { workDays, isLoaded } = useWorkData();
   const { isDarkMode, toggleDarkMode } = useDarkMode();
 
   const calendarDays = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
@@ -179,7 +179,7 @@ const Calendar: React.FC = () => {
         <div className="grid grid-cols-7 gap-1 sm:gap-2">
           {calendarDays.map((date, index) => {
             const dateString = formatDate(date);
-            const workDay = getWorkDay(dateString);
+            const workDay = workDays.find(w => w.date === dateString);
             const isTodayDate = isToday(date);
             const isCurrentMonth = isSameMonth(date, currentDate);
             const isSelected = selectedDates.some(d => formatDate(d) === dateString);
