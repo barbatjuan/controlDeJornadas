@@ -1,7 +1,15 @@
 export const formatDate = (date: Date): string => {
-  const formatted = date.toISOString().split('T')[0];
-  console.log('📅 formatDate - Converting:', date, 'to:', formatted);
-  return formatted;
+  // Create a new date in UTC using the local date's components to avoid timezone shifts.
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const day = date.getDate();
+  
+  // Using UTC date functions to prevent the local timezone from affecting the output.
+  const utcDate = new Date(Date.UTC(year, month, day));
+  
+  const formattedDate = utcDate.toISOString().split('T')[0];
+  console.log(`📅 formatDate - Converting: ${date} to: ${formattedDate}`);
+  return formattedDate;
 };
 
 export const getMonthName = (date: Date): string => {
