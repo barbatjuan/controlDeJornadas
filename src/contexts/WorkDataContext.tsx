@@ -1,17 +1,22 @@
 import React, { createContext, useState, useEffect, useCallback, useContext, ReactNode } from 'react';
-import { WorkDay, MonthStats } from '../types';
+import { WorkDay, MonthStats, Client } from '../types';
 import { supabase } from '../utils/supabase';
 
 // 1. Definir la forma del contexto
 interface IWorkDataContext {
+  clients: Client[];
   workDays: WorkDay[];
   isLoaded: boolean;
   addOrUpdateWorkDays: (days: WorkDay[]) => Promise<void>;
+  addOrUpdateClient: (client: Partial<Client>) => Promise<void>;
   removeWorkDay: (date: string) => Promise<void>;
   getWorkDay: (date: string) => WorkDay | undefined;
   getMonthStats: (year: number, month: number) => MonthStats;
   getTotalInvoiced: () => number;
   getTotalPending: () => number;
+  getMonthlyRevenue: (dateFilter?: Date | null) => { name: string; Pagado: number }[];
+  getFinancialStatusDistribution: (dateFilter?: Date | null) => { name: string; value: number }[];
+  getRevenueByClient: (dateFilter?: Date | null) => { name: string; value: number }[];
 }
 
 // 2. Crear el Contexto
@@ -24,6 +29,7 @@ interface WorkDataProviderProps {
 
 export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) => {
   const [workDays, setWorkDays] = useState<WorkDay[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const fetchWorkDays = useCallback(async () => {
@@ -40,9 +46,34 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     }
   }, []);
 
+  const fetchClients = useCallback(async () => {
+    console.log('📡 [Context] Fetching clients from Supabase...');
+    try {
+      const { data, error } = await supabase.from('clients').select('*').order('name');
+      if (error) throw error;
+      console.log('✅ [Context] Loaded clients from Supabase:', data);
+      setClients(data || []);
+    } catch (error) {
+      console.error('❌ [Context] Error loading clients:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchWorkDays();
-  }, [fetchWorkDays]);
+    fetchClients();
+  }, [fetchWorkDays, fetchClients]);
+
+  const addOrUpdateClient = async (client: Partial<Client>) => {
+    console.log('➕ [Context] Upserting client:', client);
+    try {
+      const { error } = await supabase.from('clients').upsert(client, { onConflict: 'id' });
+      if (error) throw error;
+      console.log('✅ [Context] Client upsert successful');
+      await fetchClients(); // Recargar clientes para que todos los componentes se actualicen
+    } catch (error) {
+      console.error('❌ [Context] Error upserting client:', error);
+    }
+  };
 
   const addOrUpdateWorkDays = async (days: WorkDay[]) => {
     console.log('➕ [Context] Upserting work days:', days);
@@ -104,16 +135,115 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     };
   };
 
-  const value = {
+  const getMonthlyRevenue = (dateFilter: Date | null = null) => {
+    const revenueByMonth: { [key: string]: number } = {};
+    const today = new Date();
+    
+    // Determinar el número de meses a mostrar basado en el filtro
+    let startDate = new Date(today);
+    startDate.setFullYear(today.getFullYear() - 1); // Por defecto, últimos 12 meses
+    
+    if (dateFilter) {
+      startDate = new Date(dateFilter); // Usar el filtro proporcionado
+    }
+    
+    // Crear un mapa de meses desde la fecha de inicio hasta hoy
+    let currentMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    
+    while (currentMonth <= today) {
+      const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+      revenueByMonth[monthKey] = 0;
+      currentMonth.setMonth(currentMonth.getMonth() + 1);
+    }
+
+    // Filtrar los días de trabajo por la fecha si es necesario
+    const filteredDays = dateFilter 
+      ? workDays.filter(day => new Date(day.date) >= dateFilter)
+      : workDays;
+
+    // Acumular ingresos por mes
+    filteredDays.forEach(day => {
+      if (day.status === 'paid') {
+        const monthKey = day.date.substring(0, 7);
+        if (monthKey in revenueByMonth) {
+          revenueByMonth[monthKey] += day.amount;
+        }
+      }
+    });
+
+    return Object.entries(revenueByMonth)
+      .map(([name, amount]) => ({ name, Pagado: amount }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  };
+
+  const getFinancialStatusDistribution = (dateFilter: Date | null = null) => {
+    const distribution = {
+      Pagado: 0,
+      Facturado: 0,
+      Pendiente: 0,
+    };
+
+    // Filtrar los días de trabajo por la fecha si es necesario
+    const filteredDays = dateFilter 
+      ? workDays.filter(day => new Date(day.date) >= dateFilter)
+      : workDays;
+
+    filteredDays.forEach(day => {
+      if (day.status === 'paid') distribution.Pagado += day.amount;
+      else if (day.status === 'invoiced') distribution.Facturado += day.amount;
+      else if (day.status === 'pending') distribution.Pendiente += day.amount;
+    });
+
+    return [
+      { name: 'Pagado', value: distribution.Pagado },
+      { name: 'Facturado', value: distribution.Facturado },
+      { name: 'Pendiente', value: distribution.Pendiente },
+    ];
+  };
+
+  const getRevenueByClient = (dateFilter: Date | null = null) => {
+    const revenue: { [key: string]: number } = {};
+
+    // Filtrar los días de trabajo por la fecha si es necesario
+    const filteredDays = dateFilter 
+      ? workDays.filter(day => new Date(day.date) >= dateFilter)
+      : workDays;
+
+    filteredDays.forEach(day => {
+      // Consideramos todos los estados, no solo los pagados
+      const clientId = day.client_id || 'sin-cliente';
+      if (!revenue[clientId]) {
+        revenue[clientId] = 0;
+      }
+      revenue[clientId] += day.amount;
+    });
+
+    // Ordenar por valor descendente para mostrar los clientes con más ingresos primero
+    return Object.entries(revenue)
+      .map(([clientId, amount]) => {
+        const client = clients.find(c => c.id === clientId);
+        return {
+          name: client ? client.name : 'Sin Cliente',
+          value: amount,
+        };
+      })
+      .sort((a, b) => b.value - a.value);
+  };
+
+  const value: IWorkDataContext = {
+    clients,
     workDays,
     isLoaded,
-    fetchWorkDays,
+    addOrUpdateClient,
     addOrUpdateWorkDays,
     removeWorkDay,
     getMonthStats,
     getWorkDay,
     getTotalInvoiced,
     getTotalPending,
+    getMonthlyRevenue,
+    getFinancialStatusDistribution,
+    getRevenueByClient,
   };
 
   return <WorkDataContext.Provider value={value}>{children}</WorkDataContext.Provider>;

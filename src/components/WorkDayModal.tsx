@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, DollarSign, CreditCard, FileText, Save } from 'lucide-react';
+import { X, Calendar, DollarSign, CreditCard, FileText, Save, Users } from 'lucide-react';
 import { WorkDay } from '../types';
-import { useWorkData } from '../hooks/useWorkData';
+import { useWorkData } from '../contexts/WorkDataContext';
 import { formatDate } from '../utils/dateUtils';
 
 interface WorkDayModalProps {
@@ -23,12 +23,13 @@ const ACCOUNTS = [
 ];
 
 export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates, onClose }) => {
-  const { addOrUpdateWorkDays, getWorkDay, removeWorkDay } = useWorkData();
+  const { clients, addOrUpdateWorkDays, getWorkDay, removeWorkDay } = useWorkData();
   const [formData, setFormData] = useState({
     amount: '',
     status: 'pending' as WorkDayStatus,
     account: 'Cuenta Principal',
     notes: '',
+    client_id: '',
   });
 
   const currentDate = date || new Date();
@@ -43,6 +44,7 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
         status: existingWorkDay.status,
         account: existingWorkDay.account,
         notes: existingWorkDay.notes || '',
+        client_id: existingWorkDay.client_id || '',
       });
     } else {
       setFormData({
@@ -50,6 +52,7 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
         status: 'pending',
         account: 'Cuenta Principal',
         notes: '',
+        client_id: '',
       });
     }
   }, [existingWorkDay]);
@@ -83,6 +86,7 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
           status: formData.status,
           account: formData.account,
           notes: formData.notes.trim() || undefined,
+          client_id: formData.client_id || null,
         });
       });
     } else {
@@ -92,6 +96,7 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
         status: formData.status,
         account: formData.account,
         notes: formData.notes.trim() || undefined,
+        client_id: formData.client_id || null,
       });
     }
 
@@ -107,6 +112,11 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
       await removeWorkDay(dateString);
       onClose();
     }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   return (
@@ -184,19 +194,36 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
           {/* Account */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-tokyo-fgDark mb-1 sm:mb-2">
-              <CreditCard className="inline w-3 h-3 sm:w-4 sm:h-4 mr-1 text-tokyo-purple" />
+              <CreditCard className="inline w-3 h-3 sm:w-4 sm:h-4 mr-1 text-tokyo-blue" />
               Cuenta/Método de pago *
             </label>
             <select
               value={formData.account}
-              onChange={(e) => setFormData(prev => ({ ...prev, account: e.target.value }))}
+              name="account"
+              onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 dark:border-tokyo-border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-tokyo-cyan focus:border-transparent bg-white dark:bg-tokyo-bg text-gray-800 dark:text-tokyo-fg text-sm sm:text-base"
-              required
             >
               {ACCOUNTS.map(account => (
-                <option key={account} value={account}>
-                  {account}
-                </option>
+                <option key={account} value={account}>{account}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Client */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-tokyo-fgDark mb-1 sm:mb-2">
+              <Users className="inline w-3 h-3 sm:w-4 sm:h-4 mr-1 text-tokyo-blue" />
+              Cliente
+            </label>
+            <select
+              value={formData.client_id}
+              name="client_id"
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-tokyo-border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-tokyo-cyan focus:border-transparent bg-white dark:bg-tokyo-bg text-gray-800 dark:text-tokyo-fg text-sm sm:text-base"
+            >
+              <option value="">-- Sin Cliente --</option>
+              {clients.map(client => (
+                <option key={client.id} value={client.id}>{client.name}</option>
               ))}
             </select>
           </div>

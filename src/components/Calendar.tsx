@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Users } from 'lucide-react';
 import CalendarDay from './CalendarDay';
 import WorkDayModal from './WorkDayModal';
-import { useWorkData } from '../hooks/useWorkData';
+import { useWorkData } from '../contexts/WorkDataContext';
 
 import { formatDate } from '../utils/dateUtils';
 import { getDaysInMonth, isToday, isSameMonth } from '../utils/dateUtils';
