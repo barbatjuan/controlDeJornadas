@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Users, Moon, Sun } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Users } from 'lucide-react';
 import CalendarDay from './CalendarDay';
 import WorkDayModal from './WorkDayModal';
 import { useWorkData } from '../hooks/useWorkData';
@@ -29,8 +29,6 @@ const Calendar: React.FC = () => {
       <p className={`text-2xl font-bold mt-1 ${colorClass}`}>{value}</p>
     </div>
   );
-
-  
 
   const calendarDays = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
 
@@ -98,17 +96,7 @@ const Calendar: React.FC = () => {
 
   return (
     <div className="w-full max-w-6xl mx-auto p-2 sm:p-4 lg:p-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-0">
-        <div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-tokyo-fg dark:text-tokyo-fg">
-            Control de Jornadas
-          </h1>
-          <p className="text-xs sm:text-sm lg:text-base text-gray-600 dark:text-tokyo-comment">
-            Gestiona tus días trabajados
-          </p>
-        </div>
-      </div>
+      
 
       {/* Calendar Navigation */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-0">
@@ -118,8 +106,8 @@ const Calendar: React.FC = () => {
             className="p-1.5 sm:p-2 rounded-lg bg-tokyo-purple/10 hover:bg-tokyo-purple/20 text-tokyo-purple transition-colors"
           >
             <ChevronLeft size={16} />
-          </button>
-          <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-tokyo-fg dark:text-tokyo-fg min-w-[120px] sm:min-w-[140px] lg:min-w-[180px] text-center">
+          </button>      
+          <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-tokyo-fg min-w-[120px] sm:min-w-[140px] lg:min-w-[180px] text-center">
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </h2>
           <button
