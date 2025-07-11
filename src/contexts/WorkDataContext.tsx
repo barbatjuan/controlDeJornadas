@@ -71,6 +71,12 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     return workDays.find(w => w.date === date);
   };
 
+  const getTotalInvoiced = () => {
+    return workDays
+      .filter(wd => wd.status === 'invoiced')
+      .reduce((acc, wd) => acc + wd.amount, 0);
+  };
+
   const getMonthStats = (year: number, month: number): MonthStats => {
     const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
     const monthWorkDays = workDays.filter(w => w.date.startsWith(monthKey));
