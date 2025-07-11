@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Plus, Users, Moon, Sun } from 'lucide-react'
 import CalendarDay from './CalendarDay';
 import WorkDayModal from './WorkDayModal';
 import { useWorkData } from '../hooks/useWorkData';
-import { useDarkMode } from '../hooks/useDarkMode';
+
 import { formatDate } from '../utils/dateUtils';
 import { getDaysInMonth, isToday, isSameMonth } from '../utils/dateUtils';
 
@@ -30,7 +30,7 @@ const Calendar: React.FC = () => {
     </div>
   );
 
-  const { isDarkMode, toggleDarkMode } = useDarkMode();
+  
 
   const calendarDays = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
 
@@ -108,12 +108,6 @@ const Calendar: React.FC = () => {
             Gestiona tus días trabajados
           </p>
         </div>
-        <button
-          onClick={toggleDarkMode}
-          className="p-2 rounded-lg bg-tokyo-blue/10 hover:bg-tokyo-blue/20 text-tokyo-blue transition-colors"
-        >
-          {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
       </div>
 
       {/* Calendar Navigation */}
