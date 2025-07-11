@@ -6,6 +6,9 @@ export interface Client {
   email?: string;
   phone?: string;
   address?: string;
+  nif?: string;
+  company_name?: string;
+  notes?: string;
   created_at: string;
 }
 

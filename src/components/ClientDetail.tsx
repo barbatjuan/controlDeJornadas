@@ -137,11 +137,32 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
       
       <div className="mb-6">
         <h3 className="text-xl font-bold text-tokyo-fg mb-2">{client.name}</h3>
-        <div className="space-y-1 text-sm text-tokyo-fgDark">
+        
+        {/* Información de contacto */}
+        <div className="space-y-1 text-sm text-tokyo-fgDark mb-3">
           {client.email && <p>Email: {client.email}</p>}
           {client.phone && <p>Teléfono: {client.phone}</p>}
           {client.address && <p>Dirección: {client.address}</p>}
         </div>
+        
+        {/* Información de facturación */}
+        {(client.nif || client.company_name) && (
+          <div className="mt-4 p-3 bg-tokyo-bgHighlight rounded-md border border-tokyo-border">
+            <h4 className="font-semibold text-sm text-tokyo-blue mb-2">Datos de facturación</h4>
+            <div className="space-y-1 text-sm">
+              {client.nif && <p><span className="text-tokyo-fgDark">NIF/CIF:</span> <span className="text-tokyo-fg">{client.nif}</span></p>}
+              {client.company_name && <p><span className="text-tokyo-fgDark">Empresa:</span> <span className="text-tokyo-fg">{client.company_name}</span></p>}
+            </div>
+          </div>
+        )}
+        
+        {/* Notas */}
+        {client.notes && (
+          <div className="mt-3 p-3 bg-tokyo-bgHighlight rounded-md border border-tokyo-border">
+            <h4 className="font-semibold text-sm text-tokyo-blue mb-1">Notas</h4>
+            <p className="text-sm text-tokyo-fg">{client.notes}</p>
+          </div>
+        )}
       </div>
 
       {clientStats && (

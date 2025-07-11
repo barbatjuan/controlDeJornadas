@@ -8,7 +8,15 @@ interface ClientFormProps {
 }
 
 const ClientForm: React.FC<ClientFormProps> = ({ client, onSave, onCancel }) => {
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '', address: '' });
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    email: '', 
+    phone: '', 
+    address: '', 
+    nif: '', 
+    company_name: '', 
+    notes: '' 
+  });
 
   useEffect(() => {
     if (client) {
@@ -17,9 +25,20 @@ const ClientForm: React.FC<ClientFormProps> = ({ client, onSave, onCancel }) => 
         email: client.email || '',
         phone: client.phone || '',
         address: client.address || '',
+        nif: client.nif || '',
+        company_name: client.company_name || '',
+        notes: client.notes || ''
       });
     } else {
-      setFormData({ name: '', email: '', phone: '', address: '' });
+      setFormData({ 
+        name: '', 
+        email: '', 
+        phone: '', 
+        address: '', 
+        nif: '', 
+        company_name: '', 
+        notes: '' 
+      });
     }
   }, [client]);
 
@@ -42,6 +61,20 @@ const ClientForm: React.FC<ClientFormProps> = ({ client, onSave, onCancel }) => 
         className="w-full p-2 bg-tokyo-bg border border-tokyo-border rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-tokyo-blue"
       />
       <input
+        type="text"
+        placeholder="Nombre de Empresa"
+        value={formData.company_name}
+        onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+        className="w-full p-2 bg-tokyo-bg border border-tokyo-border rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-tokyo-blue"
+      />
+      <input
+        type="text"
+        placeholder="NIF/CIF"
+        value={formData.nif}
+        onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
+        className="w-full p-2 bg-tokyo-bg border border-tokyo-border rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-tokyo-blue"
+      />
+      <input
         type="email"
         placeholder="Email"
         value={formData.email}
@@ -60,7 +93,14 @@ const ClientForm: React.FC<ClientFormProps> = ({ client, onSave, onCancel }) => 
         value={formData.address}
         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
         className="w-full p-2 bg-tokyo-bg border border-tokyo-border rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-tokyo-blue"
-        rows={3}
+        rows={2}
+      />
+      <textarea
+        placeholder="Notas"
+        value={formData.notes}
+        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+        className="w-full p-2 bg-tokyo-bg border border-tokyo-border rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-tokyo-blue"
+        rows={2}
       />
       <div className="flex justify-end gap-4">
         <button type="button" onClick={onCancel} className="px-4 py-2 rounded-md bg-gray-600 text-white">Cancelar</button>
