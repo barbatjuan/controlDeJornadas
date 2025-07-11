@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Clock, DollarSign } from 'lucide-react';
+import { Check, Clock, DollarSign, FileText } from 'lucide-react';
 import { WorkDay } from '../types';
 
 interface CalendarDayProps {
@@ -31,10 +31,14 @@ export const CalendarDay: React.FC<CalendarDayProps> = ({
     
     // Has work day data
     if (workDay && isLoaded) {
-      if (workDay.isPaid) {
-        return 'bg-green-200 dark:bg-tokyo-green/30 border-2 border-green-500 dark:border-tokyo-green hover:bg-green-300 dark:hover:bg-tokyo-green/40';
-      } else {
-        return 'bg-orange-200 dark:bg-tokyo-orange/30 border-2 border-orange-500 dark:border-tokyo-orange hover:bg-orange-300 dark:hover:bg-tokyo-orange/40';
+      switch (workDay.status) {
+        case 'paid':
+          return 'bg-green-200 dark:bg-tokyo-green/30 border-2 border-green-500 dark:border-tokyo-green hover:bg-green-300 dark:hover:bg-tokyo-green/40';
+        case 'invoiced':
+          return 'bg-blue-200 dark:bg-tokyo-blue/30 border-2 border-blue-500 dark:border-tokyo-blue hover:bg-blue-300 dark:hover:bg-tokyo-blue/40';
+        case 'pending':
+        default:
+          return 'bg-orange-200 dark:bg-tokyo-orange/30 border-2 border-orange-500 dark:border-tokyo-orange hover:bg-orange-300 dark:hover:bg-tokyo-orange/40';
       }
     }
     
@@ -44,11 +48,15 @@ export const CalendarDay: React.FC<CalendarDayProps> = ({
 
   const getStatusIcon = () => {
     if (!workDay || !isLoaded) return null;
-    return workDay.isPaid ? (
-      <Check className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 dark:text-tokyo-green" />
-    ) : (
-      <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-orange-600 dark:text-tokyo-orange" />
-    );
+    switch (workDay.status) {
+      case 'paid':
+        return <Check className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 dark:text-tokyo-green" />;
+      case 'invoiced':
+        return <FileText className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 dark:text-tokyo-blue" />;
+      case 'pending':
+      default:
+        return <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-orange-600 dark:text-tokyo-orange" />;
+    }
   };
 
   return (
@@ -113,7 +121,7 @@ export const CalendarDay: React.FC<CalendarDayProps> = ({
       {/* Work day status indicator - bottom right corner */}
       {workDay && isLoaded && (
         <div className={`absolute bottom-1 right-1 sm:bottom-2 sm:right-2 w-2 h-2 sm:w-3 sm:h-3 rounded-full border border-white dark:border-tokyo-bg ${
-          workDay.isPaid ? 'bg-green-500 dark:bg-tokyo-green' : 'bg-orange-500 dark:bg-tokyo-orange'
+          workDay.status === 'paid' ? 'bg-green-500 dark:bg-tokyo-green' : workDay.status === 'invoiced' ? 'bg-blue-500 dark:bg-tokyo-blue' : 'bg-orange-500 dark:bg-tokyo-orange'
         }`}></div>
       )}
     </div>

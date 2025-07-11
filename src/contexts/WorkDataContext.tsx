@@ -73,13 +73,20 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
   const getMonthStats = (year: number, month: number): MonthStats => {
     const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
     const monthWorkDays = workDays.filter(w => w.date.startsWith(monthKey));
+
+    const paidDays = monthWorkDays.filter(w => w.status === 'paid');
+    const pendingDays = monthWorkDays.filter(w => w.status === 'pending');
+    const invoicedDays = monthWorkDays.filter(w => w.status === 'invoiced');
+
     return {
       totalDays: monthWorkDays.length,
       totalAmount: monthWorkDays.reduce((sum, w) => sum + w.amount, 0),
-      paidAmount: monthWorkDays.filter(w => w.isPaid).reduce((sum, w) => sum + w.amount, 0),
-      pendingAmount: monthWorkDays.filter(w => !w.isPaid).reduce((sum, w) => sum + w.amount, 0),
-      paidDays: monthWorkDays.filter(w => w.isPaid).length,
-      pendingDays: monthWorkDays.filter(w => !w.isPaid).length,
+      paidAmount: paidDays.reduce((sum, w) => sum + w.amount, 0),
+      pendingAmount: pendingDays.reduce((sum, w) => sum + w.amount, 0),
+      invoicedAmount: invoicedDays.reduce((sum, w) => sum + w.amount, 0),
+      paidDays: paidDays.length,
+      pendingDays: pendingDays.length,
+      invoicedDays: invoicedDays.length,
     };
   };
 

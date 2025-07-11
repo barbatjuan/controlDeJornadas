@@ -16,9 +16,6 @@ function App() {
               <div className="p-2 sm:p-3 bg-blue-600 dark:bg-tokyo-blue rounded-full shadow-lg dark:shadow-tokyo-blue/20">
                 <CalendarIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
               </div>
-              <h1 className="text-2xl sm:text-4xl font-bold text-gray-800 dark:text-tokyo-fg">
-                Control de Jornadas
-              </h1>
             </div>
             <button
               onClick={toggleDark}

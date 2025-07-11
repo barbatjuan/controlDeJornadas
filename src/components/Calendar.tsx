@@ -14,7 +14,22 @@ const Calendar: React.FC = () => {
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   
-  const { workDays, isLoaded } = useWorkData();
+  const { workDays, isLoaded, getMonthStats } = useWorkData();
+
+  // Stats Calculation
+  const currentMonthStats = getMonthStats(currentDate.getFullYear(), currentDate.getMonth());
+
+  const prevMonthDate = new Date(currentDate);
+  prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+  const prevMonthStats = getMonthStats(prevMonthDate.getFullYear(), prevMonthDate.getMonth());
+
+  const StatsCard = ({ title, value, colorClass = 'text-tokyo-blue' }: { title: string, value: string, colorClass?: string }) => (
+    <div className="bg-white dark:bg-tokyo-bgHighlight p-4 rounded-lg shadow-md text-center">
+      <h3 className="text-sm font-semibold text-gray-500 dark:text-tokyo-fgDark">{title}</h3>
+      <p className={`text-2xl font-bold mt-1 ${colorClass}`}>{value}</p>
+    </div>
+  );
+
   const { isDarkMode, toggleDarkMode } = useDarkMode();
 
   const calendarDays = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
@@ -164,7 +179,31 @@ const Calendar: React.FC = () => {
       </div>
 
       {/* Calendar Grid */}
-      <div className="bg-white dark:bg-tokyo-bgDark rounded-xl shadow-lg p-2 sm:p-4 lg:p-6">
+      <div className="bg-white dark:bg-tokyo-bg p-4 sm:p-6 rounded-2xl shadow-lg">
+        {/* Stats Dashboard */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+          <StatsCard 
+            title="Total Mes Actual" 
+            value={`€${currentMonthStats.totalAmount.toFixed(2)}`} 
+            colorClass="text-tokyo-green"
+          />
+          <StatsCard 
+            title="Pendiente" 
+            value={`€${currentMonthStats.pendingAmount.toFixed(2)}`} 
+            colorClass="text-tokyo-orange"
+          />
+          <StatsCard 
+            title="Facturado" 
+            value={`€${currentMonthStats.invoicedAmount.toFixed(2)}`} 
+            colorClass="text-tokyo-blue"
+          />
+          <StatsCard 
+            title="Total Mes Anterior" 
+            value={`€${prevMonthStats.totalAmount.toFixed(2)}`} 
+            colorClass="text-tokyo-fgDark"
+          />
+        </div>
+
         {/* Day headers */}
         <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2 sm:mb-4">
           {dayNames.map((day, index) => (

@@ -1,7 +1,9 @@
+export type WorkDayStatus = 'pending' | 'invoiced' | 'paid';
+
 export interface WorkDay {
   date: string; // YYYY-MM-DD format
   amount: number;
-  isPaid: boolean;
+  status: WorkDayStatus;
   account: string;
   notes?: string;
 }
@@ -11,6 +13,8 @@ export interface MonthStats {
   totalAmount: number;
   paidAmount: number;
   pendingAmount: number;
+  invoicedAmount: number;
   paidDays: number;
   pendingDays: number;
+  invoicedDays: number;
 }

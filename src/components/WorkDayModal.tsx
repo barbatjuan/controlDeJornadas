@@ -26,8 +26,8 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
   const { addOrUpdateWorkDays, getWorkDay } = useWorkData();
   const [formData, setFormData] = useState({
     amount: '',
-    isPaid: false, // Default to false (pending)
-    account: 'Cuenta Principal', // Default account
+    status: 'pending' as WorkDayStatus,
+    account: 'Cuenta Principal',
     notes: '',
   });
 
@@ -40,14 +40,14 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
     if (existingWorkDay) {
       setFormData({
         amount: existingWorkDay.amount.toString(),
-        isPaid: existingWorkDay.isPaid,
+        status: existingWorkDay.status,
         account: existingWorkDay.account,
         notes: existingWorkDay.notes || '',
       });
     } else {
       setFormData({
         amount: '',
-        isPaid: false,
+        status: 'pending',
         account: 'Cuenta Principal',
         notes: '',
       });
@@ -80,7 +80,7 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
         daysToSave.push({
           date: formatDate(selectedDate),
           amount: amount,
-          isPaid: formData.isPaid,
+          status: formData.status,
           account: formData.account,
           notes: formData.notes.trim() || undefined,
         });
@@ -89,7 +89,7 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
       daysToSave.push({
         date: dateString,
         amount: amount,
-        isPaid: formData.isPaid,
+        status: formData.status,
         account: formData.account,
         notes: formData.notes.trim() || undefined,
       });
@@ -201,21 +201,40 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
             </select>
           </div>
 
-          {/* Payment Status */}
-          <div className="p-3 bg-gray-50 dark:bg-tokyo-bg rounded-lg border dark:border-tokyo-border">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.isPaid}
-                onChange={(e) => setFormData(prev => ({ ...prev, isPaid: e.target.checked }))}
-                className="w-4 h-4 text-blue-600 dark:text-tokyo-cyan rounded focus:ring-blue-500 dark:focus:ring-tokyo-cyan"
-              />
-              <span className="text-sm font-medium text-gray-700 dark:text-tokyo-fgDark">
-                ¿Ya ha sido pagado?
-              </span>
+          {/* Status */}
+          <div className="mt-4">
+            <label className="block font-semibold text-gray-700 dark:text-tokyo-fgDark mb-2">
+              Estado
             </label>
-            <div className="text-xs text-gray-500 dark:text-tokyo-comment mt-1">
-              {formData.isPaid ? 'Marcado como pagado' : 'Marcado como pendiente'}
+            <div className="flex rounded-lg shadow-sm">
+              {(['pending', 'invoiced', 'paid'] as WorkDayStatus[]).map((status, index) => {
+                const statusText: { [key in WorkDayStatus]: string } = {
+                  pending: 'Pendiente',
+                  invoiced: 'Facturado',
+                  paid: 'Pagado',
+                };
+                const baseClasses = 'flex-1 py-2 text-sm font-semibold text-center cursor-pointer transition-colors duration-200';
+                const selectedClasses = 'text-white';
+                const unselectedClasses = 'bg-gray-200 dark:bg-tokyo-bgHighlight text-gray-700 dark:text-tokyo-fgDark hover:bg-gray-300 dark:hover:bg-tokyo-border';
+                const colorClasses: { [key in WorkDayStatus]: string } = {
+                  pending: 'bg-orange-500 dark:bg-tokyo-orange',
+                  invoiced: 'bg-blue-500 dark:bg-tokyo-blue',
+                  paid: 'bg-green-500 dark:bg-tokyo-green',
+                };
+                const first = index === 0 ? 'rounded-l-lg' : '';
+                const last = index === 2 ? 'rounded-r-lg' : '';
+
+                return (
+                  <button
+                    type="button"
+                    key={status}
+                    onClick={() => setFormData(prev => ({ ...prev, status }))}
+                    className={`${baseClasses} ${first} ${last} ${formData.status === status ? `${selectedClasses} ${colorClasses[status]}` : unselectedClasses}`}
+                  >
+                    {statusText[status]}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
