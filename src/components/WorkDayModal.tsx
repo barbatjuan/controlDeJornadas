@@ -5,8 +5,8 @@ import { useWorkData } from '../hooks/useWorkData';
 import { formatDate } from '../utils/dateUtils';
 
 interface WorkDayModalProps {
-  date?: Date | null;
-  selectedDates?: Date[];
+  date: Date | null;
+  selectedDates: Date[];
   onClose: () => void;
 }
 
@@ -22,8 +22,8 @@ const ACCOUNTS = [
   'Efectivo',
 ];
 
-export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates = [], onClose }) => {
-  const { getWorkDay, addOrUpdateWorkDays, removeWorkDay } = useWorkData();
+export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates, onClose }) => {
+  const { addOrUpdateWorkDays, getWorkDay } = useWorkData();
   const [formData, setFormData] = useState({
     amount: '',
     isPaid: false, // Default to false (pending)
