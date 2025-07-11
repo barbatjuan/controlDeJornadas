@@ -12,17 +12,6 @@ function App() {
         <main className="py-8">
           <Calendar />
         </main>
-        </div>
-
-        {/* Calendar */}
-        <Calendar />
-
-        {/* Footer */}
-        <div className="text-center mt-6 sm:mt-12 text-gray-500 dark:text-tokyo-comment">
-          <p className="text-sm">
-            Desarrollado con <span className="text-red-500 dark:text-tokyo-red animate-pulse">❤️</span> para profesionales independientes
-          </p>
-        </div>
       </div>
     </div>
   );
