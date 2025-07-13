@@ -213,11 +213,13 @@ const Dashboard: React.FC = () => {
         >
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-tokyo-fgDark mb-1 flex items-center gap-1">
-                <DollarSign size={14} className="inline" />
+              <p className="text-sm text-tokyo-fgDark mb-1">
                 Ingresos Totales
               </p>
-              <h3 className="text-2xl font-bold text-tokyo-fg">{formatCurrency(stats.totalRevenue)}</h3>
+              <h3 className="text-2xl font-bold text-tokyo-fg flex items-center justify-between">
+                {formatCurrency(stats.totalRevenue)}
+                <DollarSign size={18} className="text-tokyo-blue ml-2" />
+              </h3>
               <div className="mt-2 text-xs flex items-center">
                 <span className={revenueTrend > 0 ? 'text-tokyo-green' : revenueTrend < 0 ? 'text-tokyo-red' : 'text-tokyo-fgDark'}>
                   {revenueTrend > 0 ? <ArrowUp size={12} className="inline mr-1" /> : revenueTrend < 0 ? <ArrowDown size={12} className="inline mr-1" /> : null}
@@ -239,11 +241,13 @@ const Dashboard: React.FC = () => {
         >
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-tokyo-fgDark mb-1 flex items-center gap-1">
-                <Calendar size={14} className="inline" />
+              <p className="text-sm text-tokyo-fgDark mb-1">
                 Días Trabajados
               </p>
-              <h3 className="text-2xl font-bold text-tokyo-fg">{stats.totalDays}</h3>
+              <h3 className="text-2xl font-bold text-tokyo-fg flex items-center justify-between">
+                {stats.totalDays}
+                <Calendar size={18} className="text-tokyo-purple ml-2" />
+              </h3>
               <p className="mt-2 text-xs text-tokyo-fgDark">
                 Media diaria: {formatCurrency(stats.avgDailyRate)}
               </p>
@@ -261,11 +265,13 @@ const Dashboard: React.FC = () => {
         >
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-tokyo-fgDark mb-1 flex items-center gap-1">
-                <Clock size={14} className="inline" />
+              <p className="text-sm text-tokyo-fgDark mb-1">
                 Pendiente de Cobro
               </p>
-              <h3 className="text-2xl font-bold text-tokyo-fg">{formatCurrency(stats.pendingRevenue + stats.invoicedRevenue)}</h3>
+              <h3 className="text-2xl font-bold text-tokyo-fg flex items-center justify-between">
+                {formatCurrency(stats.pendingRevenue + stats.invoicedRevenue)}
+                <Clock size={18} className="text-tokyo-orange ml-2" />
+              </h3>
               <div className="flex gap-2 mt-2">
                 <p className="text-xs px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-500">
                   Pendiente: {formatCurrency(stats.pendingRevenue)}
@@ -288,11 +294,13 @@ const Dashboard: React.FC = () => {
         >
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-tokyo-fgDark mb-1 flex items-center gap-1">
-                <Users size={14} className="inline" />
+              <p className="text-sm text-tokyo-fgDark mb-1">
                 Clientes Activos
               </p>
-              <h3 className="text-2xl font-bold text-tokyo-fg">{stats.clientCount}</h3>
+              <h3 className="text-2xl font-bold text-tokyo-fg flex items-center justify-between">
+                {stats.clientCount}
+                <Users size={18} className="text-tokyo-cyan ml-2" />
+              </h3>
               <p className="mt-2 text-xs text-tokyo-fgDark">
                 Total de clientes: {clients.length}
               </p>

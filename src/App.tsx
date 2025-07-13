@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { BarChart2, Calendar, Users } from 'lucide-react';
 import CalendarPage from './pages/CalendarPage';
 import Dashboard from './pages/Dashboard';
@@ -19,6 +20,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-tokyo-bgDark font-sans">
+      <Toaster richColors position="top-center" />
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <header className="text-center pt-8 sm:pt-12">
           <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-tokyo-blue to-tokyo-cyan">

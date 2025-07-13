@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback, useContext, ReactNode } from 'react';
+import { toast } from 'sonner';
 import { WorkDay, MonthStats, Client } from '../types';
 import { supabase } from '../utils/supabase';
 
@@ -81,9 +82,11 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
       const { error } = await supabase.from('work_days').upsert(days, { onConflict: 'date' });
       if (error) throw error;
       console.log('✅ [Context] Upsert successful');
+      toast.success('Jornadas guardadas correctamente');
       await fetchWorkDays(); // Recargar datos para que todos los componentes se actualicen
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [Context] Error upserting work data:', error);
+      toast.error(`Error al guardar: ${error.message}`);
     }
   };
 
@@ -93,9 +96,11 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
       const { error } = await supabase.from('work_days').delete().eq('date', date);
       if (error) throw error;
       console.log('✅ [Context] Deletion successful');
+      toast.success('Jornada eliminada correctamente');
       setWorkDays(prev => prev.filter(w => w.date !== date)); // Actualización optimista
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [Context] Error removing work day:', error);
+      toast.error(`Error al eliminar: ${error.message}`);
     }
   };
 

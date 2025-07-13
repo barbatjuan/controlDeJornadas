@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { X, Calendar, DollarSign, CreditCard, FileText, Save, Users } from 'lucide-react';
 import { WorkDay } from '../types';
 import { useWorkData } from '../contexts/WorkDataContext';
@@ -24,6 +25,7 @@ const ACCOUNTS = [
 
 export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates, onClose }) => {
   const { clients, addOrUpdateWorkDays, getWorkDay, removeWorkDay } = useWorkData();
+  const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
   const [formData, setFormData] = useState({
     amount: '',
     status: 'pending' as WorkDayStatus,
@@ -59,57 +61,40 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
     const amount = parseFloat(formData.amount);
+    
     if (!formData.amount || isNaN(amount) || amount <= 0) {
-      alert('Por favor, ingresa un monto válido');
+      toast.error('Por favor, ingresa un monto válido.');
       return;
     }
-
     if (!formData.account) {
-      alert('Por favor, selecciona una cuenta');
+      toast.error('Por favor, selecciona una cuenta.');
       return;
     }
 
-    console.log('🚀 WorkDayModal - Submitting form data:', formData);
-    console.log('📅 WorkDayModal - Is multiple selection:', isMultipleSelection);
-    console.log('📅 WorkDayModal - Selected dates:', selectedDates.map(d => formatDate(d)));
+    const daysToSave: WorkDay[] = (isMultipleSelection ? selectedDates : [currentDate]).map(d => ({
+      date: formatDate(d),
+      amount: amount,
+      status: formData.status,
+      account: formData.account,
+      notes: formData.notes.trim() || undefined,
+      client_id: formData.client_id || null,
+    }));
 
-    const daysToSave: WorkDay[] = [];
-
-    if (isMultipleSelection) {
-      console.log('🔄 WorkDayModal - Preparing multiple dates for saving...');
-      selectedDates.forEach(selectedDate => {
-        daysToSave.push({
-          date: formatDate(selectedDate),
-          amount: amount,
-          status: formData.status,
-          account: formData.account,
-          notes: formData.notes.trim() || undefined,
-          client_id: formData.client_id || null,
-        });
-      });
-    } else {
-      daysToSave.push({
-        date: dateString,
-        amount: amount,
-        status: formData.status,
-        account: formData.account,
-        notes: formData.notes.trim() || undefined,
-        client_id: formData.client_id || null,
-      });
-    }
-
-    console.log(`💾 WorkDayModal - Saving ${daysToSave.length} day(s)...`, daysToSave);
     addOrUpdateWorkDays(daysToSave);
-
-    console.log('✅ WorkDayModal - Form submitted, closing modal');
     onClose();
   };
 
-  const handleDelete = async () => {
-    if (existingWorkDay && confirm('¿Estás seguro de que quieres eliminar este día de trabajo?')) {
-      await removeWorkDay(dateString);
+  const handleDelete = () => {
+    if (existingWorkDay) {
+      setIsDeleteConfirmVisible(true);
+    }
+  };
+
+  const confirmDelete = () => {
+    if (existingWorkDay) {
+      removeWorkDay(dateString);
+      setIsDeleteConfirmVisible(false);
       onClose();
     }
   };
@@ -313,6 +298,30 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
             )}
           </div>
         </form>
+
+        {/* Delete Confirmation Modal */}
+        {isDeleteConfirmVisible && (
+          <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center rounded-xl sm:rounded-2xl z-10">
+            <div className="bg-tokyo-bgDark p-6 rounded-lg shadow-xl border border-tokyo-border w-full max-w-sm">
+              <h3 className="text-lg font-bold text-tokyo-fg mb-4">¿Confirmar Eliminación?</h3>
+              <p className="text-tokyo-fgDark mb-6">Esta acción no se puede deshacer. ¿Estás seguro de que quieres continuar?</p>
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => setIsDeleteConfirmVisible(false)}
+                  className="px-4 py-2 rounded-lg bg-gray-600 text-white hover:bg-gray-500 transition-colors font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 rounded-lg bg-tokyo-red text-white hover:bg-red-700 transition-colors font-semibold"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
