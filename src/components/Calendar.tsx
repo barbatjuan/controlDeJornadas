@@ -380,11 +380,16 @@ const Calendar: React.FC = () => {
       {/* Calendar Grid */}
       <div className="bg-white dark:bg-tokyo-bg p-4 sm:p-6 rounded-2xl shadow-lg">
         {/* Stats Dashboard */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 mb-6">
           <StatsCard 
             title="Total Mes Actual" 
             value={`€${totalMonthAmount.toFixed(2)}`} 
             colorClass="text-tokyo-green"
+          />
+          <StatsCard 
+            title="Facturado" 
+            value={`€${totalInvoicedAmount.toFixed(2)}`} 
+            colorClass="text-tokyo-purple"
           />
           <StatsCard 
             title="Por Facturar" 
