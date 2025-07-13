@@ -1,11 +1,25 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Users } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Users,
+  Calendar as CalendarIcon,
+  PlusCircle,
+  Plus,
+  ChevronDown,
+  Check,
+  X
+} from 'lucide-react';
 import CalendarDay from './CalendarDay';
+import { WorkDay } from '../types';
 import WorkDayModal from './WorkDayModal';
 import { useWorkData } from '../contexts/WorkDataContext';
-
-import { formatDate } from '../utils/dateUtils';
-import { getDaysInMonth, isToday, isSameMonth } from '../utils/dateUtils';
+import { formatDate, getDaysInMonth, isToday, isSameMonth } from '../utils/dateUtils';
+import WorkDayContextMenu from './WorkDayContextMenu';
+import ClientsModal from './ClientsModal';
+import StatsCard from './StatsCard';
+import { toast } from 'sonner';
+import ConfirmDialog from './ConfirmDialog';
 
 const Calendar: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -13,8 +27,35 @@ const Calendar: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [firstSelectedDate, setFirstSelectedDate] = useState<Date | null>(null);
   
-  const { workDays, isLoaded, getMonthStats, getTotalInvoiced, getTotalPending } = useWorkData();
+  // Estado para el menú contextual
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    position: { x: number; y: number };
+    date: Date | null;
+  }>({ isOpen: false, position: { x: 0, y: 0 }, date: null });
+  
+  const [isAdditionalPayment, setIsAdditionalPayment] = useState(false);
+  
+  // Estado para el diálogo de confirmación de eliminación
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    isOpen: false,
+    dateStr: "",
+    isSecondPayment: false,
+    title: "",
+    message: ""
+  });
+  
+  const { 
+    workDays, 
+    isLoaded, 
+    getMonthStats, 
+    getTotalInvoiced, 
+    getTotalPending, 
+    getWorkDay, 
+    removeWorkDay 
+  } = useWorkData();
 
   // Stats Calculation
   const currentMonthStats = getMonthStats(currentDate.getFullYear(), currentDate.getMonth());
@@ -22,8 +63,24 @@ const Calendar: React.FC = () => {
   const prevMonthDate = new Date(currentDate);
   prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
   const prevMonthStats = getMonthStats(prevMonthDate.getFullYear(), prevMonthDate.getMonth());
-  const totalInvoicedAmount = getTotalInvoiced ? getTotalInvoiced() : 0;
-  const totalPendingAmount = getTotalPending ? getTotalPending() : 0;
+  
+  // Utilizamos los valores del getMonthStats para mayor consistencia
+  // Así mostramos solo los valores del mes actual, no de toda la historia
+  const [totalMonthAmount, setTotalMonthAmount] = useState(currentMonthStats.totalAmount);
+  const [totalInvoicedAmount, setTotalInvoicedAmount] = useState(currentMonthStats.invoicedAmount);
+  const [totalPendingAmount, setTotalPendingAmount] = useState(currentMonthStats.pendingAmount);
+  const [totalPaidAmount, setTotalPaidAmount] = useState(currentMonthStats.paidAmount);
+
+  // Actualizamos los valores cuando cambia el mes o se cargan nuevos datos
+  useEffect(() => {
+    if (isLoaded) {
+      const monthStats = getMonthStats(currentDate.getFullYear(), currentDate.getMonth());
+      setTotalMonthAmount(monthStats.totalAmount);
+      setTotalInvoicedAmount(monthStats.invoicedAmount);
+      setTotalPendingAmount(monthStats.pendingAmount);
+      setTotalPaidAmount(monthStats.paidAmount);
+    }
+  }, [currentDate, isLoaded, workDays, getMonthStats]);
 
   const StatsCard = ({ title, value, colorClass = 'text-tokyo-blue' }: { title: string, value: string, colorClass?: string }) => (
     <div className="bg-white dark:bg-tokyo-bgHighlight p-4 rounded-lg shadow-md text-center">
@@ -54,7 +111,11 @@ const Calendar: React.FC = () => {
     });
   };
 
-  const handleDayClick = (date: Date) => {
+  const handleDayClick = (date: Date, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Si estamos en modo multi-selección, manejarlo
     if (isMultiSelectMode) {
       setSelectedDates(prev => {
         const dateString = date.toDateString();
@@ -66,19 +127,155 @@ const Calendar: React.FC = () => {
           return [...prev, date];
         }
       });
-    } else {
-      setSelectedDate(date);
-      setIsModalOpen(true);
+      return;
     }
+
+    const dateStr = formatDate(date);
+    // Verificar primero si la función getWorkDay está disponible
+    if (typeof getWorkDay === 'function') {
+      const existingWorkDays = getWorkDay(dateStr);
+      
+      // Si hay un pago existente, mostramos el menú contextual
+      if (existingWorkDays) {
+        setContextMenu({
+          isOpen: true,
+          position: { x: event.clientX, y: event.clientY },
+          date: date
+        });
+        return;
+      }
+    } else {
+      // Si getWorkDay no está disponible, buscamos directamente en la lista de días de trabajo
+      const existingWorkDay = workDays.find(w => w.date === dateStr);
+      if (existingWorkDay) {
+        setContextMenu({
+          isOpen: true,
+          position: { x: event.clientX, y: event.clientY },
+          date: date
+        });
+        return;
+      }
+    }
+
+    // Si no hay pago, abrimos el modal directamente
+    setSelectedDate(date);
+    setIsModalOpen(true);
+  };
+
+  const handleEditWorkDay = (isSecondPayment = false) => {
+    if (contextMenu.date) {
+      setSelectedDate(contextMenu.date);
+      setIsAdditionalPayment(isSecondPayment);
+      setIsModalOpen(true);
+      // Cerrar el menú contextual
+      setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, date: null });
+    }
+  };
+  
+  const handleAddSecondPayment = () => {
+    if (contextMenu.date) {
+      setSelectedDate(contextMenu.date);
+      setIsAdditionalPayment(true);
+      setIsModalOpen(true);
+      // Cerrar el menú contextual
+      setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, date: null });
+    }
+  };
+  
+  const handleDeleteWorkDay = (isSecondPayment = false) => {
+    console.log('🗑️ Calendar - handleDeleteWorkDay called with isSecondPayment:', isSecondPayment);
+    
+    if (contextMenu.date) {
+      const dateStr = formatDate(contextMenu.date);
+      console.log('🗑️ Calendar - dateStr:', dateStr);
+      
+      // Verificar si getWorkDay está disponible
+      let existingWorkDays;
+      
+      if (typeof getWorkDay === 'function') {
+        existingWorkDays = getWorkDay(dateStr);
+        console.log('🗑️ Calendar - existingWorkDays from getWorkDay:', existingWorkDays);
+      } else {
+        // Buscar directamente en workDays
+        existingWorkDays = workDays.filter(w => w.date === dateStr);
+        console.log('🗑️ Calendar - existingWorkDays from workDays:', existingWorkDays);
+      }
+      
+      if (isSecondPayment) {
+        // Eliminar solo el segundo pago
+        console.log('🗑️ Calendar - Intentando eliminar solo el segundo pago');
+        
+        // Configurar el diálogo de confirmación para eliminar el segundo pago
+        setDeleteConfirm({
+          isOpen: true,
+          dateStr: dateStr,
+          isSecondPayment: true,
+          title: "Confirmar Eliminación",
+          message: `¿Eliminar el segundo pago para ${formatDate(contextMenu.date, true)}?`
+        });
+      } else {
+        // Eliminar el día completo o el pago principal
+        const confirmMessage = existingWorkDays.length > 1
+          ? `¿Eliminar todos los pagos para ${formatDate(contextMenu.date, true)}?`
+          : `¿Eliminar pago para ${formatDate(contextMenu.date, true)}?`;
+        
+        console.log('🗑️ Calendar - Intentando eliminar día completo, mensaje:', confirmMessage);
+        
+        // Configurar el diálogo de confirmación para eliminar el día completo
+        setDeleteConfirm({
+          isOpen: true,
+          dateStr: dateStr,
+          isSecondPayment: false,
+          title: "Confirmar Eliminación",
+          message: confirmMessage
+        });
+      }
+      
+      // Cerrar el menú contextual
+      setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, date: null });
+    }
+  };
+  
+  // Función para confirmar la eliminación
+  const confirmDeleteAction = () => {
+    if (typeof removeWorkDay === 'function') {
+      console.log('🗑️ Calendar - Llamando a removeWorkDay con isSecondPayment:', deleteConfirm.isSecondPayment);
+      removeWorkDay(deleteConfirm.dateStr, deleteConfirm.isSecondPayment);
+      toast.success(deleteConfirm.isSecondPayment ? 'Segundo pago eliminado correctamente' : 'Pago eliminado correctamente');
+    } else {
+      console.error('❌ Calendar - removeWorkDay no es una función');
+      toast.error('Error al eliminar el pago');
+    }
+    
+    // Cerrar el diálogo de confirmación
+    setDeleteConfirm({
+      isOpen: false,
+      dateStr: "",
+      isSecondPayment: false,
+      title: "",
+      message: ""
+    });
+  };
+  
+  // Función para cancelar la eliminación
+  const cancelDeleteAction = () => {
+    setDeleteConfirm({
+      isOpen: false,
+      dateStr: "",
+      isSecondPayment: false,
+      title: "",
+      message: ""
+    });
   };
 
   const handleAddMultipleDays = () => {
     console.log('🎯 Calendar - handleAddMultipleDays called with:', selectedDates.length, 'dates');
     console.log('📋 Calendar - Selected dates:', selectedDates.map(d => formatDate(d)));
     if (selectedDates.length > 0) {
-      setSelectedDate(null); // No necesitamos selectedDate para múltiples
+      // Abrir modal para añadir múltiples días
       setIsModalOpen(true);
-      console.log('🔓 Calendar - Opening modal for multiple selection');
+      // Resetear el indicador de pago adicional al añadir múltiples días
+      setIsAdditionalPayment(false);
     }
   };
 
@@ -91,10 +288,28 @@ const Calendar: React.FC = () => {
     setIsMultiSelectMode(false);
     setIsModalOpen(false);
     setSelectedDate(null);
-    
+    // Resetear el indicador de pago adicional
+    setIsAdditionalPayment(false);
+    // Si estaba en modo contextMenu, limpiar el estado
+    if (contextMenu.isOpen) {
+      setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, date: null });
+    }
     console.log('✅ Calendar - State cleaned up');
   };
 
+  const daysInMonth = useMemo(() => {
+    const workDaysMap: { [key: string]: WorkDay[] } = {};
+    
+    // Agrupar todos los registros por fecha
+    workDays.forEach(day => {
+      if (!workDaysMap[day.date]) {
+        workDaysMap[day.date] = [];
+      }
+      workDaysMap[day.date].push(day);
+    });
+    
+    return workDaysMap;
+  }, [workDays]);
 
   return (
     <div className="w-full max-w-6xl mx-auto p-2 sm:p-4 lg:p-6">
@@ -168,7 +383,7 @@ const Calendar: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
           <StatsCard 
             title="Total Mes Actual" 
-            value={`€${currentMonthStats.totalAmount.toFixed(2)}`} 
+            value={`€${totalMonthAmount.toFixed(2)}`} 
             colorClass="text-tokyo-green"
           />
           <StatsCard 
@@ -177,8 +392,8 @@ const Calendar: React.FC = () => {
             colorClass="text-tokyo-orange"
           />
           <StatsCard 
-            title="Facturado" 
-            value={`€${totalInvoicedAmount.toFixed(2)}`} 
+            title="Pagado" 
+            value={`€${totalPaidAmount.toFixed(2)}`} 
             colorClass="text-tokyo-blue"
           />
           <StatsCard 
@@ -202,7 +417,7 @@ const Calendar: React.FC = () => {
         <div className="grid grid-cols-7 gap-1 sm:gap-2">
           {calendarDays.map((date, index) => {
             const dateString = formatDate(date);
-            const workDay = workDays.find(w => w.date === dateString);
+            const workDays = daysInMonth[dateString] || [];
             const isTodayDate = isToday(date);
             const isCurrentMonth = isSameMonth(date, currentDate);
             const isSelected = selectedDates.some(d => formatDate(d) === dateString);
@@ -211,13 +426,13 @@ const Calendar: React.FC = () => {
               <CalendarDay
                 key={index}
                 date={date}
-                workDay={workDay}
+                workDays={workDays} /* Pasamos la lista completa de trabajos para este día */
                 isCurrentMonth={isCurrentMonth}
                 isToday={isTodayDate}
                 isSelected={isSelected}
                 isMultiSelectMode={isMultiSelectMode}
                 isLoaded={isLoaded}
-                onClick={() => handleDayClick(date)}
+                onClick={(e) => handleDayClick(date, e)}
               />
             );
           })}
@@ -230,8 +445,32 @@ const Calendar: React.FC = () => {
           date={selectedDate}
           selectedDates={selectedDates}
           onClose={handleCloseModal}
+          isAdditionalPayment={isAdditionalPayment}
         />
       )}
+      
+      {/* Context Menu */}
+      {contextMenu.isOpen && contextMenu.date && (
+        <WorkDayContextMenu
+          position={contextMenu.position}
+          date={contextMenu.date}
+          onEdit={handleEditWorkDay}
+          onAddSecondPayment={handleAddSecondPayment}
+          onDelete={handleDeleteWorkDay}
+          onClose={() => setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, date: null })}
+        />
+      )}
+      
+      {/* Diálogo de confirmación para eliminar pagos */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={cancelDeleteAction}
+        onConfirm={confirmDeleteAction}
+        title={deleteConfirm.title}
+        message={deleteConfirm.message}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+      />
     </div>
   );
 };

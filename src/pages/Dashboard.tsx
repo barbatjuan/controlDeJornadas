@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useWorkData } from '../contexts/WorkDataContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from 'recharts';
 import { Calendar, DollarSign, TrendingUp, Users, ArrowUp, ArrowDown, Clock, Filter } from 'lucide-react';
+import { WorkDay } from '../types';
 
 const COLORS = { 
   paid: '#9ece6a', // tokyo-green
@@ -33,51 +34,76 @@ const Dashboard: React.FC = () => {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('6m');
   const [isAnimated, setIsAnimated] = useState(false);
 
-  // Set animation flag after component mount
   useEffect(() => {
     const timer = setTimeout(() => setIsAnimated(true), 100);
     return () => clearTimeout(timer);
   }, []);
 
-  // Calculate date filter based on selected time frame
-  const dateFilter = useMemo(() => {
-    const today = new Date();
-    const result = new Date(today);
-
-    switch (timeFilter) {
-      case '30d':
-        result.setDate(today.getDate() - 30);
-        break;
-      case '90d':
-        result.setDate(today.getDate() - 90);
-        break;
-      case '6m':
-        result.setMonth(today.getMonth() - 6);
-        break;
-      case '1y':
-        result.setFullYear(today.getFullYear() - 1);
-        break;
-      case 'all':
-        return null; // No filter
-    }
-
-    return result;
-  }, [timeFilter]);
-
-  // Filter workdays based on selected time frame
-  const filteredWorkDays = useMemo(() => {
-    if (!isLoaded || !workDays) return [];
-    if (!dateFilter) return workDays;
+  // Reemplazando useCallback con una función normal
+  const filterWorkDays = (days: WorkDay[], filter: string) => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
     
-    return workDays.filter(day => {
-      const workDate = new Date(day.date);
-      return workDate >= dateFilter;
+    return days.filter(day => {
+      const workDayDate = new Date(day.date);
+      
+      switch(filter) {
+        case 'all':
+          return true;
+        case 'current_month':
+          return workDayDate.getMonth() === currentMonth && workDayDate.getFullYear() === currentYear;
+        case 'last_month': {
+          const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+          const yearOfLastMonth = currentMonth === 0 ? currentYear - 1 : currentYear;
+          return workDayDate.getMonth() === lastMonth && workDayDate.getFullYear() === yearOfLastMonth;
+        }
+        case 'current_year':
+          return workDayDate.getFullYear() === currentYear;
+        case 'last_year':
+          return workDayDate.getFullYear() === currentYear - 1;
+        default:
+          return true;
+      }
     });
-  }, [workDays, dateFilter, isLoaded]);
+  };
 
-  // Calculate summary statistics
+  // Convertir a useMemo para mantener la reactividad con workDays y timeFilter
+  const revenues = useMemo(() => {
+    const filteredDays = filterWorkDays(workDays, timeFilter);
+    
+    let paid = 0;
+    let pending = 0;
+    let invoiced = 0;
+    
+    filteredDays.forEach(day => {
+      if (day.status === 'paid') {
+        paid += day.amount;
+      } else if (day.status === 'invoiced') {
+        invoiced += day.amount;
+      } else if (day.status === 'pending') {
+        pending += day.amount;
+      }
+    });
+
+    const totalRevenue = paid + pending + invoiced;
+    const pendingPercentage = totalRevenue > 0 ? (pending / totalRevenue * 100).toFixed(0) : "0";
+    const invoicedPercentage = totalRevenue > 0 ? (invoiced / totalRevenue * 100).toFixed(0) : "0";
+    const paidPercentage = totalRevenue > 0 ? (paid / totalRevenue * 100).toFixed(0) : "0";
+
+    return {
+      totalRevenue,
+      paid,
+      pending,
+      invoiced,
+      pendingPercentage,
+      invoicedPercentage,
+      paidPercentage
+    };
+  }, [workDays, timeFilter]);
+
   const stats = useMemo(() => {
-    if (!isLoaded || filteredWorkDays.length === 0) {
+    if (!isLoaded || workDays.length === 0) {
       return {
         totalRevenue: 0,
         paidRevenue: 0,
@@ -89,25 +115,21 @@ const Dashboard: React.FC = () => {
       };
     }
 
-    const totalRevenue = filteredWorkDays.reduce((sum, day) => sum + day.amount, 0);
-    const paidRevenue = filteredWorkDays.filter(day => day.status === 'paid').reduce((sum, day) => sum + day.amount, 0);
-    const pendingRevenue = filteredWorkDays.filter(day => day.status === 'pending').reduce((sum, day) => sum + day.amount, 0);
-    const invoicedRevenue = filteredWorkDays.filter(day => day.status === 'invoiced').reduce((sum, day) => sum + day.amount, 0);
-    const totalDays = filteredWorkDays.length;
+    // Ya no necesitamos llamar a calculateRevenues porque revenues ahora es el resultado directo del useMemo
+    const totalDays = workDays.length;
     
-    // Count unique clients with work days
-    const uniqueClientIds = new Set(filteredWorkDays.filter(day => day.client_id).map(day => day.client_id));
+    const uniqueClientIds = new Set(workDays.filter(day => day.client_id).map(day => day.client_id));
 
     return {
-      totalRevenue,
-      paidRevenue,
-      pendingRevenue,
-      invoicedRevenue,
+      totalRevenue: revenues.totalRevenue,
+      paidRevenue: revenues.paid,
+      pendingRevenue: revenues.pending,
+      invoicedRevenue: revenues.invoiced,
       totalDays,
-      avgDailyRate: totalDays > 0 ? totalRevenue / totalDays : 0,
+      avgDailyRate: totalDays > 0 ? revenues.totalRevenue / totalDays : 0,
       clientCount: uniqueClientIds.size
     };
-  }, [filteredWorkDays, isLoaded]);
+  }, [workDays, isLoaded, revenues]);
 
   // Format currency amounts
   const formatCurrency = (amount: number) => {
@@ -118,21 +140,52 @@ const Dashboard: React.FC = () => {
     }).format(amount);
   };
 
+  // Convertir el filtro de tiempo en una fecha específica para las gráficas
+  const getDateFilterFromTimeFilter = (filter: TimeFilter): Date | null => {
+    const now = new Date();
+    
+    switch(filter) {
+      case '30d':
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(now.getDate() - 30);
+        return thirtyDaysAgo;
+      case '90d':
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(now.getDate() - 90);
+        return ninetyDaysAgo;
+      case '6m':
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(now.getMonth() - 6);
+        return sixMonthsAgo;
+      case '1y':
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(now.getFullYear() - 1);
+        return oneYearAgo;
+      case 'all':
+        return null; // Null indica que no hay filtro
+      default:
+        return null;
+    }
+  };
+  
   // Prepare chart data based on filtered data
   const monthlyRevenueData = useMemo(() => {
     if (!isLoaded) return [];
+    const dateFilter = getDateFilterFromTimeFilter(timeFilter);
     return getMonthlyRevenue(dateFilter);
-  }, [getMonthlyRevenue, dateFilter, isLoaded]);
+  }, [getMonthlyRevenue, timeFilter, isLoaded]);
 
   const financialStatusData = useMemo(() => {
     if (!isLoaded) return [];
+    const dateFilter = getDateFilterFromTimeFilter(timeFilter);
     return getFinancialStatusDistribution(dateFilter);
-  }, [getFinancialStatusDistribution, dateFilter, isLoaded]);
+  }, [getFinancialStatusDistribution, timeFilter, isLoaded]);
 
   const revenueByClientData = useMemo(() => {
     if (!isLoaded) return [];
+    const dateFilter = getDateFilterFromTimeFilter(timeFilter);
     return getRevenueByClient(dateFilter);
-  }, [getRevenueByClient, dateFilter, isLoaded]);
+  }, [getRevenueByClient, timeFilter, isLoaded]);
 
   // Calculate trends
   const calculateTrend = (data: {name: string, [key: string]: any}[]) => {
@@ -216,9 +269,8 @@ const Dashboard: React.FC = () => {
               <p className="text-sm text-tokyo-fgDark mb-1">
                 Ingresos Totales
               </p>
-              <h3 className="text-2xl font-bold text-tokyo-fg flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-tokyo-fg">
                 {formatCurrency(stats.totalRevenue)}
-                <DollarSign size={18} className="text-tokyo-blue ml-2" />
               </h3>
               <div className="mt-2 text-xs flex items-center">
                 <span className={revenueTrend > 0 ? 'text-tokyo-green' : revenueTrend < 0 ? 'text-tokyo-red' : 'text-tokyo-fgDark'}>
@@ -244,9 +296,8 @@ const Dashboard: React.FC = () => {
               <p className="text-sm text-tokyo-fgDark mb-1">
                 Días Trabajados
               </p>
-              <h3 className="text-2xl font-bold text-tokyo-fg flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-tokyo-fg">
                 {stats.totalDays}
-                <Calendar size={18} className="text-tokyo-purple ml-2" />
               </h3>
               <p className="mt-2 text-xs text-tokyo-fgDark">
                 Media diaria: {formatCurrency(stats.avgDailyRate)}
@@ -268,9 +319,8 @@ const Dashboard: React.FC = () => {
               <p className="text-sm text-tokyo-fgDark mb-1">
                 Pendiente de Cobro
               </p>
-              <h3 className="text-2xl font-bold text-tokyo-fg flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-tokyo-fg">
                 {formatCurrency(stats.pendingRevenue + stats.invoicedRevenue)}
-                <Clock size={18} className="text-tokyo-orange ml-2" />
               </h3>
               <div className="flex gap-2 mt-2">
                 <p className="text-xs px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-500">
@@ -297,9 +347,8 @@ const Dashboard: React.FC = () => {
               <p className="text-sm text-tokyo-fgDark mb-1">
                 Clientes Activos
               </p>
-              <h3 className="text-2xl font-bold text-tokyo-fg flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-tokyo-fg">
                 {stats.clientCount}
-                <Users size={18} className="text-tokyo-cyan ml-2" />
               </h3>
               <p className="mt-2 text-xs text-tokyo-fgDark">
                 Total de clientes: {clients.length}
