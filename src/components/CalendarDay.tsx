@@ -137,18 +137,13 @@ export const CalendarDay: React.FC<CalendarDayProps> = ({
           )}
           
           {/* Mostrar todos los trabajos */}
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-row gap-2 flex-wrap">
             {dayWorkDays.map((workDay, index) => (
               <div key={workDay.id || index} className="flex items-center gap-1">
-                <Euro className="w-2 h-2 sm:w-3 sm:h-3 text-green-600 dark:text-green-400" />
+                <Euro className="w-2 h-2 sm:w-3 sm:h-3 text-orange-500 dark:text-tokyo-orange" />
                 <span className="text-xs font-bold text-gray-800 dark:text-tokyo-fg">
                   {workDay.amount.toFixed(0)}
                 </span>
-                {workDay.is_second_entry && (
-                  <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">
-                    (2)
-                  </span>
-                )}
               </div>
             ))}
           </div>
