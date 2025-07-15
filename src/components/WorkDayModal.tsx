@@ -9,6 +9,7 @@ interface WorkDayModalProps {
   date: Date | null;
   selectedDates: Date[];
   onClose: () => void;
+  isAdditionalPayment?: boolean; // Indica si estamos añadiendo un pago adicional
 }
 
 const ACCOUNTS = [
@@ -17,52 +18,96 @@ const ACCOUNTS = [
   'Wise',
   'Cuenta Ahorros',
   'PayPal',
-  'Revolut',
-  'Bizum',
-  'Transferencia',
-  'Efectivo',
 ];
 
-export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates, onClose }) => {
-  const { clients, addOrUpdateWorkDays, getWorkDay, removeWorkDay } = useWorkData();
+type WorkDayStatus = 'pending' | 'invoiced' | 'paid';
+
+type FormData = {
+  amount: string;
+  status: WorkDayStatus;
+  account: string;
+  notes: string;
+  client_id: string | null;
+};
+
+export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates, onClose, isAdditionalPayment = false }) => {
+  const { clients, addOrUpdateWorkDays, getWorkDay, getSecondWorkDay, removeWorkDay, addOrUpdateSecondWorkDay } = useWorkData();
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
-  const [formData, setFormData] = useState({
+  
+  // Estado del formulario para un pago
+  const [formData, setFormData] = useState<FormData>({
     amount: '',
-    status: 'pending' as WorkDayStatus,
+    status: 'pending',
     account: 'Cuenta Principal',
     notes: '',
-    client_id: '',
+    client_id: ''
   });
 
   const currentDate = date || new Date();
+  const formattedDate = formatDate(currentDate);
+  const existingWorkDay = getWorkDay ? getWorkDay(formattedDate) : undefined;
   const isMultipleSelection = selectedDates.length > 1;
-  const dateString = date ? formatDate(currentDate) : '';
-  const existingWorkDay = date ? getWorkDay(dateString) : undefined;
 
+  // Cargar datos existentes
   useEffect(() => {
     if (existingWorkDay) {
-      setFormData({
-        amount: existingWorkDay.amount.toString(),
-        status: existingWorkDay.status,
-        account: existingWorkDay.account,
-        notes: existingWorkDay.notes || '',
-        client_id: existingWorkDay.client_id || '',
-      });
+      // Si es un pago adicional para el mismo día, lo tratamos como un registro independiente
+      if (isAdditionalPayment) {
+        // NOTA: Ya no buscamos existingWorkDay.amount2 porque ahora cada trabajo es un registro independiente
+        // Buscamos si ya existe un segundo registro para este día
+        const secondWorkDay = getSecondWorkDay ? getSecondWorkDay(formattedDate) : undefined;
+        
+        if (secondWorkDay) {
+          // Si existe un segundo registro, cargamos sus datos
+          setFormData({
+            amount: secondWorkDay.amount.toString(),
+            status: secondWorkDay.status || 'pending',
+            account: secondWorkDay.account || 'Cuenta Principal',
+            notes: secondWorkDay.notes || '',
+            client_id: secondWorkDay.client_id || ''
+          });
+        } else {
+          // Si no existe un segundo registro, inicializamos con valores por defecto
+          setFormData({
+            amount: '',
+            status: 'pending',
+            account: 'Cuenta Principal',
+            notes: '',
+            client_id: ''
+          });
+        }
+      } else {
+        // Cargar datos del pago principal
+        setFormData({
+          amount: existingWorkDay.amount.toString(),
+          status: existingWorkDay.status || 'pending',
+          account: existingWorkDay.account || 'Cuenta Principal',
+          notes: existingWorkDay.notes || '',
+          client_id: existingWorkDay.client_id || ''
+        });
+      }
     } else {
+      // Valores por defecto
       setFormData({
         amount: '',
         status: 'pending',
         account: 'Cuenta Principal',
         notes: '',
-        client_id: '',
+        client_id: ''
       });
     }
   }, [existingWorkDay]);
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const amount = parseFloat(formData.amount);
-    
+
+    // Validación del pago
     if (!formData.amount || isNaN(amount) || amount <= 0) {
       toast.error('Por favor, ingresa un monto válido.');
       return;
@@ -72,36 +117,66 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
       return;
     }
 
-    const daysToSave: WorkDay[] = (isMultipleSelection ? selectedDates : [currentDate]).map(d => ({
-      date: formatDate(d),
-      amount: amount,
-      status: formData.status,
-      account: formData.account,
-      notes: formData.notes.trim() || undefined,
-      client_id: formData.client_id || null,
-    }));
+    // Si es un pago adicional (segundo trabajo en el mismo día), lo guardamos como un registro independiente
+    if (isAdditionalPayment) {
+      // Crear un nuevo registro para el segundo trabajo
+      const secondWorkDay: WorkDay = {
+        date: formattedDate, // Mismo día
+        amount: amount,      // Nuevo monto
+        status: formData.status,
+        account: formData.account,
+        notes: formData.notes.trim() || undefined,
+        client_id: formData.client_id || null,
+        is_second_entry: true // Marcar como segundo registro del día
+      };
+
+      // Guardar como un registro independiente
+      addOrUpdateSecondWorkDay(secondWorkDay);
+      toast.success('Segundo trabajo guardado correctamente');
+      onClose();
+      return;
+    }
+    
+    // Para registros normales (primer trabajo del día)
+    const daysToSave: WorkDay[] = (isMultipleSelection ? selectedDates : [currentDate]).map(d => {
+      const workDay: WorkDay = {
+        date: formatDate(d),
+        amount: amount,
+        status: formData.status,
+        account: formData.account,
+        notes: formData.notes.trim() || undefined,
+        client_id: formData.client_id || null,
+      };
+      return workDay;
+    });
 
     addOrUpdateWorkDays(daysToSave);
+    toast.success(isMultipleSelection ? 'Días guardados correctamente' : 'Día guardado correctamente');
     onClose();
   };
 
   const handleDelete = () => {
-    if (existingWorkDay) {
-      setIsDeleteConfirmVisible(true);
+    // Para segundo trabajo, verificamos si existe un segundo registro
+    if (isAdditionalPayment) {
+      const secondWorkDay = getSecondWorkDay ? getSecondWorkDay(formattedDate) : undefined;
+      if (!secondWorkDay) return;
+    } else if (!existingWorkDay) {
+      return;
     }
+    setIsDeleteConfirmVisible(true);
   };
 
   const confirmDelete = () => {
-    if (existingWorkDay) {
-      removeWorkDay(dateString);
-      setIsDeleteConfirmVisible(false);
-      onClose();
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (isMultipleSelection) return;
+    
+    const dateStr = formatDate(currentDate);
+    
+    // Eliminar el registro correspondiente (primero o segundo)
+    removeWorkDay(dateStr, isAdditionalPayment);
+    
+    toast.success(isAdditionalPayment ? 'Segundo trabajo eliminado correctamente' : 'Día eliminado correctamente');
+    setIsDeleteConfirmVisible(false);
+    onClose();
   };
 
   return (
@@ -112,10 +187,13 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-tokyo-cyan" />
             <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-tokyo-fg">
-              {isMultipleSelection 
-                ? `Añadir ${selectedDates.length} Días` 
-                : existingWorkDay ? 'Editar Día' : 'Nuevo Día'
-              }
+              {isMultipleSelection
+                ? 'Añadir varias jornadas'
+                : existingWorkDay
+                ? isAdditionalPayment
+                  ? 'Añadir segundo pago'
+                  : 'Editar jornada'
+                : 'Añadir jornada'}
             </h2>
           </div>
           <button
@@ -156,11 +234,11 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
-          {/* Amount */}
+          {/* Importe del pago */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-tokyo-fgDark mb-1 sm:mb-2">
-              <DollarSign className="inline w-3 h-3 sm:w-4 sm:h-4 mr-1 text-tokyo-yellow" />
-              Monto (€) *
+              <DollarSign className="inline w-3 h-3 sm:w-4 sm:h-4 mr-1 text-tokyo-blue" />
+              {isAdditionalPayment ? 'Importe del segundo pago' : 'Importe'} *
             </label>
             <input
               type="number"
@@ -194,16 +272,15 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
             </select>
           </div>
 
-          {/* Client */}
+          {/* Cliente primer pago */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-tokyo-fgDark mb-1 sm:mb-2">
               <Users className="inline w-3 h-3 sm:w-4 sm:h-4 mr-1 text-tokyo-blue" />
               Cliente
             </label>
             <select
-              value={formData.client_id}
-              name="client_id"
-              onChange={handleChange}
+              value={formData.client_id || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, client_id: e.target.value || null }))}
               className="w-full px-3 py-2 border border-gray-300 dark:border-tokyo-border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-tokyo-cyan focus:border-transparent bg-white dark:bg-tokyo-bg text-gray-800 dark:text-tokyo-fg text-sm sm:text-base"
             >
               <option value="">-- Sin Cliente --</option>
@@ -212,6 +289,8 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
               ))}
             </select>
           </div>
+
+          {/* Sin sección adicional de segundo pago, ahora todo está en ventanas separadas */}
 
           {/* Status */}
           <div className="mt-4">
@@ -258,7 +337,9 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
             </label>
             <textarea
               value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+              onChange={(e) =>
+                setFormData(prev => ({ ...prev, notes: e.target.value }))
+              }
               className="w-full px-3 py-2 border border-gray-300 dark:border-tokyo-border rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-tokyo-cyan focus:border-transparent bg-white dark:bg-tokyo-bg text-gray-800 dark:text-tokyo-fg text-sm sm:text-base"
               rows={2}
               placeholder="Añade notas sobre este día de trabajo..."
@@ -273,19 +354,17 @@ export const WorkDayModal: React.FC<WorkDayModalProps> = ({ date, selectedDates,
             >
               <Save className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">
-                {isMultipleSelection 
-                  ? `Guardar ${selectedDates.length} días` 
-                  : existingWorkDay ? 'Actualizar' : 'Guardar'
-                }
+                {isMultipleSelection
+                  ? `Guardar ${selectedDates.length} días`
+                  : existingWorkDay ? 'Actualizar' : 'Guardar'}
               </span>
               <span className="sm:hidden">
-                {isMultipleSelection 
-                  ? `+${selectedDates.length}` 
-                  : existingWorkDay ? 'Editar' : 'Guardar'
-                }
+                {isMultipleSelection
+                  ? `+${selectedDates.length}`
+                  : existingWorkDay ? 'Editar' : 'Guardar'}
               </span>
             </button>
-            
+
             {existingWorkDay && !isMultipleSelection && (
               <button
                 type="button"

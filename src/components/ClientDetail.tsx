@@ -52,34 +52,41 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
       return;
     }
 
-    // Calcular estadísticas
-    const totalAmount = clientWorkDays.reduce((sum, day) => sum + day.amount, 0);
-    const averageDailyRate = totalAmount / clientWorkDays.length;
+    // Calcular estadísticas para todos los registros del cliente
+    let totalAmount = 0;
+    let pendingAmount = 0;
+    let invoicedAmount = 0;
+    let paidAmount = 0;
+    const monthlyStats: { [key: string]: { totalDays: number; totalAmount: number; averageAmount: number } } = {};
     
-    // Calcular desglose por estado
-    const statusBreakdown = {
-      pending: clientWorkDays.filter(day => day.status === 'pending').reduce((sum, day) => sum + day.amount, 0),
-      invoiced: clientWorkDays.filter(day => day.status === 'invoiced').reduce((sum, day) => sum + day.amount, 0),
-      paid: clientWorkDays.filter(day => day.status === 'paid').reduce((sum, day) => sum + day.amount, 0)
-    };
-
-    // Calcular estadísticas mensuales
-    const monthlyStats: ClientStats['monthlyStats'] = {};
-    
+    // Procesar cada registro independiente
     clientWorkDays.forEach(day => {
-      // Extraer año y mes de la fecha (formato YYYY-MM-DD)
-      const yearMonth = day.date.substring(0, 7); // YYYY-MM
+      const amount = day.amount || 0;
+      totalAmount += amount;
       
-      if (!monthlyStats[yearMonth]) {
-        monthlyStats[yearMonth] = {
+      // Calcular montos por estado
+      if (day.status === 'paid') {
+        paidAmount += amount;
+      } else if (day.status === 'invoiced') {
+        invoicedAmount += amount;
+      } else if (day.status === 'pending') {
+        pendingAmount += amount;
+      }
+      
+      // Estadísticas mensuales
+      const date = new Date(day.date);
+      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!monthlyStats[monthYear]) {
+        monthlyStats[monthYear] = {
           totalDays: 0,
           totalAmount: 0,
           averageAmount: 0
         };
       }
       
-      monthlyStats[yearMonth].totalDays += 1;
-      monthlyStats[yearMonth].totalAmount += day.amount;
+      monthlyStats[monthYear].totalDays += 1;
+      monthlyStats[monthYear].totalAmount += amount;
     });
     
     // Calcular promedios mensuales
@@ -87,6 +94,14 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
       const stats = monthlyStats[month];
       stats.averageAmount = stats.totalAmount / stats.totalDays;
     });
+    
+    const averageDailyRate = clientWorkDays.length > 0 ? totalAmount / clientWorkDays.length : 0;
+    
+    const statusBreakdown = {
+      pending: pendingAmount,
+      invoiced: invoicedAmount,
+      paid: paidAmount
+    };
 
     setClientStats({
       totalWorkDays: clientWorkDays.length,

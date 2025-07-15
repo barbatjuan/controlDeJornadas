@@ -55,3 +55,25 @@ export const isSameMonth = (date: Date, referenceDate: Date): boolean => {
   return date.getMonth() === referenceDate.getMonth() && 
          date.getFullYear() === referenceDate.getFullYear();
 };
+
+/**
+ * Genera un array de fechas entre dos fechas dadas (inclusivas)
+ */
+export const getDateRange = (startDate: Date, endDate: Date): Date[] => {
+  const dates: Date[] = [];
+  
+  // Asegurarse que startDate sea anterior a endDate
+  let start = new Date(Math.min(startDate.getTime(), endDate.getTime()));
+  const end = new Date(Math.max(startDate.getTime(), endDate.getTime()));
+  
+  // Clonar la fecha de inicio para no modificar la original
+  const current = new Date(start);
+  
+  // Añadir cada fecha al array hasta llegar a la fecha final
+  while (current <= end) {
+    dates.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return dates;
+};

@@ -8,7 +8,7 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ currentDate }) => {
-  const { getMonthStats, workDays, isLoaded } = useWorkData();
+  const { getMonthStats, workDays, isLoaded, getSecondWorkDay } = useWorkData();
   const stats = getMonthStats(currentDate.getFullYear(), currentDate.getMonth());
   
   console.log('📊 Dashboard rendering with stats:', stats);
@@ -25,16 +25,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentDate }) => {
 
   // Group by account
   const accountStats = monthWorkDays.reduce((acc, workDay) => {
+    // Si no existe la cuenta, la inicializamos
     if (!acc[workDay.account]) {
       acc[workDay.account] = { total: 0, paid: 0, pending: 0, count: 0 };
     }
-    acc[workDay.account].total += workDay.amount;
+    
+    const amount = workDay.amount || 0;
+    acc[workDay.account].total += amount;
     acc[workDay.account].count += 1;
-    if (workDay.isPaid) {
-      acc[workDay.account].paid += workDay.amount;
+    
+    // Agregamos el monto según el estado del pago
+    if (workDay.status === 'paid') {
+      acc[workDay.account].paid += amount;
     } else {
-      acc[workDay.account].pending += workDay.amount;
+      acc[workDay.account].pending += amount;
     }
+    
     return acc;
   }, {} as Record<string, { total: number; paid: number; pending: number; count: number }>);
 
@@ -184,6 +190,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentDate }) => {
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-green-700 dark:text-tokyo-green text-sm sm:text-base">€{workDay.amount.toFixed(2)}</div>
+                    {workDay.amount2 && workDay.amount2 > 0 && workDay.status2 === 'paid' && (
+                      <div className="font-bold text-green-700 dark:text-tokyo-green text-sm sm:text-base mt-1">+€{workDay.amount2.toFixed(2)}</div>
+                    )}
                     <div className="text-xs text-green-600 dark:text-tokyo-green/80">Pagado</div>
                   </div>
                 </div>
@@ -219,6 +228,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentDate }) => {
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-orange-700 dark:text-tokyo-orange text-sm sm:text-base">€{workDay.amount.toFixed(2)}</div>
+                    {workDay.amount2 && workDay.amount2 > 0 && workDay.status2 === 'pending' && (
+                      <div className="font-bold text-orange-700 dark:text-tokyo-orange text-sm sm:text-base mt-1">+€{workDay.amount2.toFixed(2)}</div>
+                    )}
                     <div className="text-xs text-orange-600 dark:text-tokyo-orange/80">Pendiente</div>
                   </div>
                 </div>

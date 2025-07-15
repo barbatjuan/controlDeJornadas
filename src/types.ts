@@ -13,12 +13,14 @@ export interface Client {
 }
 
 export interface WorkDay {
+  id?: string; // ID único del registro en la base de datos
   date: string; // YYYY-MM-DD format
   amount: number;
   status: WorkDayStatus;
   account: string;
   notes?: string;
   client_id?: string | null;
+  is_second_entry?: boolean; // Indica si es un segundo registro para el mismo día
 }
 
 export interface MonthStats {
