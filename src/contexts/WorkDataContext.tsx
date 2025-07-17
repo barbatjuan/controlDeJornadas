@@ -11,6 +11,7 @@ interface IWorkDataContext {
   clients: Client[];
   selectedMonth: Date;
   setSelectedMonth: (date: Date) => void;
+  addOrUpdateClient: (client: Partial<Client>) => void;
   addOrUpdateWorkDays: (days: WorkDay[]) => void;
   addOrUpdateSecondWorkDay: (day: WorkDay) => void;
   removeWorkDay: (date: string, isSecondEntry?: boolean) => void;
@@ -409,6 +410,7 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     clients,
     selectedMonth,
     setSelectedMonth,
+    addOrUpdateClient,
     addOrUpdateWorkDays,
     addOrUpdateSecondWorkDay,
     removeWorkDay,
