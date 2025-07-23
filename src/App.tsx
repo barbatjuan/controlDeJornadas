@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import { BarChart2, Calendar, Users } from 'lucide-react';
+import { BarChart2, Calendar, Users, FolderKanban } from 'lucide-react';
 import CalendarPage from './pages/CalendarPage';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
+import Projects from './pages/Projects';
 
 function App() {
   useEffect(() => {
@@ -38,6 +39,10 @@ function App() {
               <BarChart2 size={18} />
               Dashboard
             </NavLink>
+            <NavLink to="/projects" className={navLinkClasses}>
+              <FolderKanban size={18} />
+              Proyectos
+            </NavLink>
             <NavLink to="/clients" className={navLinkClasses}>
               <Users size={18} />
               Clientes
@@ -50,6 +55,7 @@ function App() {
             <Route path="/" element={<Navigate to="/calendar" replace />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/projects" element={<Projects />} />
             <Route path="/clients" element={<Clients />} />
           </Routes>
         </main>
