@@ -75,3 +75,36 @@ export interface ProjectPayment {
   notes?: string;
   created_at: string;
 }
+
+// Tipos para el sistema de facturación recurrente
+export type RecurrenceType = 'monthly' | 'quarterly' | 'biannual' | 'annual';
+export type InvoiceStatus = 'active' | 'paused' | 'cancelled';
+export type RecurringPaymentStatus = 'pending' | 'paid' | 'overdue';
+
+export interface RecurringInvoice {
+  id: string;
+  client_id?: string;
+  name: string;
+  description?: string;
+  amount: number;
+  recurrence_type: RecurrenceType;
+  start_date: string;
+  end_date?: string; // Fecha opcional de finalización
+  next_due_date: string;
+  status: InvoiceStatus;
+  payment_status: 'pending' | 'paid'; // Estado de pago simple
+  auto_generate: boolean; // Si se generan automáticamente los pagos
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecurringPayment {
+  id: string;
+  recurring_invoice_id: string;
+  amount: number;
+  due_date: string;
+  payment_date?: string;
+  status: RecurringPaymentStatus;
+  notes?: string;
+  created_at: string;
+}

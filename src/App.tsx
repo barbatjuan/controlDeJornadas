@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import { BarChart2, Calendar, Users, FolderKanban } from 'lucide-react';
+import { BarChart2, Calendar, Users, FolderKanban, RefreshCw } from 'lucide-react';
 import CalendarPage from './pages/CalendarPage';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
 import Projects from './pages/Projects';
+import RecurringInvoices from './pages/RecurringInvoices';
 
 function App() {
   useEffect(() => {
@@ -30,22 +31,26 @@ function App() {
         </header>
 
         <nav className="mt-6 sm:mt-8 mb-8 flex justify-center">
-          <div className="flex space-x-2 sm:space-x-4 bg-tokyo-bg p-2 rounded-xl border border-tokyo-border">
+          <div className="flex flex-wrap justify-center space-x-2 sm:space-x-4 bg-tokyo-bg p-2 rounded-xl border border-tokyo-border">
             <NavLink to="/calendar" className={navLinkClasses}>
               <Calendar size={18} />
-              Calendario
+              <span className="hidden sm:inline">Calendario</span>
             </NavLink>
             <NavLink to="/dashboard" className={navLinkClasses}>
               <BarChart2 size={18} />
-              Dashboard
+              <span className="hidden sm:inline">Dashboard</span>
             </NavLink>
             <NavLink to="/projects" className={navLinkClasses}>
               <FolderKanban size={18} />
-              Proyectos
+              <span className="hidden sm:inline">Proyectos</span>
+            </NavLink>
+            <NavLink to="/recurring" className={navLinkClasses}>
+              <RefreshCw size={18} />
+              <span className="hidden sm:inline">Recurrentes</span>
             </NavLink>
             <NavLink to="/clients" className={navLinkClasses}>
               <Users size={18} />
-              Clientes
+              <span className="hidden sm:inline">Clientes</span>
             </NavLink>
           </div>
         </nav>
@@ -56,6 +61,7 @@ function App() {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/recurring" element={<RecurringInvoices />} />
             <Route path="/clients" element={<Clients />} />
           </Routes>
         </main>

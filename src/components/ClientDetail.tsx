@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Calendar, DollarSign, FileText, BarChart2 } from 'lucide-react';
-import { Client, WorkDay } from '../types';
+import { Client, WorkDay, ProjectPayment, RecurringPayment } from '../types';
 import { useWorkData } from '../contexts/WorkDataContext';
 
 interface ClientDetailProps {
@@ -27,55 +27,53 @@ interface ClientStats {
 }
 
 const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
-  const { workDays } = useWorkData();
+  const { workDays, projectPayments, projects, recurringInvoices } = useWorkData();
   const [clientStats, setClientStats] = useState<ClientStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!client || !workDays) {
+    if (!client) {
       setIsLoading(false);
       return;
     }
 
-    // Filtrar días de trabajo por cliente
+    // 1. Filtrar días de trabajo por cliente
     const clientWorkDays = workDays.filter(day => day.client_id === client.id);
     
-    if (clientWorkDays.length === 0) {
-      setClientStats({
-        totalWorkDays: 0,
-        totalAmount: 0,
-        averageDailyRate: 0,
-        monthlyStats: {},
-        statusBreakdown: { pending: 0, invoiced: 0, paid: 0 }
-      });
-      setIsLoading(false);
-      return;
-    }
+    // 2. Filtrar pagos de proyectos por cliente
+    const clientProjectPayments = projectPayments.filter(payment => {
+      const project = projects.find(p => p.id === payment.project_id);
+      return project && project.client_id === client.id;
+    });
+    
+    // 3. Filtrar facturas recurrentes por cliente
+    const clientRecurringInvoices = recurringInvoices.filter(invoice => 
+      invoice.client_id === client.id
+    );
 
-    // Calcular estadísticas para todos los registros del cliente
+    // Calcular estadísticas unificadas
     let totalAmount = 0;
     let pendingAmount = 0;
     let invoicedAmount = 0;
     let paidAmount = 0;
     const monthlyStats: { [key: string]: { totalDays: number; totalAmount: number; averageAmount: number } } = {};
     
-    // Procesar cada registro independiente
-    clientWorkDays.forEach(day => {
-      const amount = day.amount || 0;
+    // Función auxiliar para procesar un pago
+    const processPayment = (amount: number, status: string, date: string, isWorkDay = false) => {
       totalAmount += amount;
       
       // Calcular montos por estado
-      if (day.status === 'paid') {
+      if (status === 'paid') {
         paidAmount += amount;
-      } else if (day.status === 'invoiced') {
+      } else if (status === 'invoiced') {
         invoicedAmount += amount;
-      } else if (day.status === 'pending') {
+      } else if (status === 'pending') {
         pendingAmount += amount;
       }
       
       // Estadísticas mensuales
-      const date = new Date(day.date);
-      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const dateObj = new Date(date);
+      const monthYear = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
       
       if (!monthlyStats[monthYear]) {
         monthlyStats[monthYear] = {
@@ -85,8 +83,25 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
         };
       }
       
-      monthlyStats[monthYear].totalDays += 1;
+      if (isWorkDay) {
+        monthlyStats[monthYear].totalDays += 1;
+      }
       monthlyStats[monthYear].totalAmount += amount;
+    };
+    
+    // Procesar jornadas de trabajo
+    clientWorkDays.forEach(day => {
+      processPayment(day.amount || 0, day.status, day.date, true);
+    });
+    
+    // Procesar pagos de proyectos
+    clientProjectPayments.forEach(payment => {
+      processPayment(payment.amount || 0, payment.status, payment.date);
+    });
+    
+    // Procesar facturas recurrentes
+    clientRecurringInvoices.forEach(invoice => {
+      processPayment(invoice.amount || 0, invoice.payment_status, invoice.next_due_date);
     });
     
     // Calcular promedios mensuales
@@ -112,7 +127,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
     });
     
     setIsLoading(false);
-  }, [client, workDays]);
+  }, [client, workDays, projectPayments, projects, recurringInvoices]);
 
   // Función para formatear montos en euros
   const formatCurrency = (amount: number) => {
