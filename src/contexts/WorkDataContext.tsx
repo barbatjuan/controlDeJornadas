@@ -30,7 +30,11 @@ interface IWorkDataContext {
   getTotalPaid: () => number;
   getTotalAmount: () => number;
   addOrUpdateRecurringInvoice: (invoice: Partial<RecurringInvoice>) => Promise<void>;
+  deleteRecurringInvoice: (invoiceId: string) => Promise<boolean>;
+  deleteProject: (projectId: string) => Promise<boolean>;
   generateRecurringPayments: () => Promise<number>;
+  generateRecurringPaymentsManually: () => Promise<number>;
+  generateTestRecurringPayments: () => Promise<number>;
   updateRecurringPaymentStatus: (paymentId: string, status: 'paid' | 'pending', paymentDate?: string) => Promise<boolean>;
 }
 
@@ -460,8 +464,8 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     filteredProjectPayments.forEach(payment => {
       const monthKey = payment.payment_date.substring(0, 7);
       if (monthKey in revenueByMonth) {
-        // Añadir pago si está pagado
-        if (payment.status === 'paid') {
+        // Añadir pago si está pagado o facturado
+        if (payment.status === 'paid' || payment.status === 'invoiced') {
           revenueByMonth[monthKey] += payment.amount || 0;
         }
       }
@@ -517,10 +521,11 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
       const amount = payment.amount || 0;
       if (payment.status === 'paid') {
         distribution.Pagado += amount;
+      } else if (payment.status === 'invoiced') {
+        distribution.Facturado += amount;
       } else if (payment.status === 'pending') {
         distribution.Pendiente += amount;
       }
-      // Los pagos de proyectos solo tienen estados 'paid' y 'pending', no 'invoiced'
     });
 
     // Filtrar los pagos recurrentes por la fecha si es necesario
@@ -539,7 +544,6 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
       } else if (payment.status === 'pending' || payment.status === 'overdue') {
         distribution.Pendiente += amount;
       }
-      // Los pagos recurrentes tienen estados 'paid', 'pending' y 'overdue'
     });
 
     return [
@@ -705,6 +709,255 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     }
   };
 
+  // Función manual para generar pagos recurrentes
+  const generateRecurringPaymentsManually = async () => {
+    console.log('🔄 [Context] Generating recurring payments manually...');
+    try {
+      const today = new Date();
+      let generatedCount = 0;
+      
+      for (const invoice of recurringInvoices) {
+        if (invoice.status !== 'active') continue;
+        
+        // Calcular próxima fecha de vencimiento si no existe
+        let nextDueDate = invoice.next_due_date ? new Date(invoice.next_due_date) : new Date(invoice.start_date);
+        
+        // Generar pagos hasta la fecha actual
+        while (nextDueDate <= today) {
+          // Verificar si ya existe un pago para esta fecha
+          const existingPayment = recurringPayments.find(p => 
+            p.recurring_invoice_id === invoice.id && 
+            new Date(p.due_date).toDateString() === nextDueDate.toDateString()
+          );
+          
+          if (!existingPayment) {
+            // Crear nuevo pago
+            const newPayment = {
+              recurring_invoice_id: invoice.id,
+              amount: invoice.amount,
+              due_date: nextDueDate.toISOString().split('T')[0],
+              status: 'pending' as const,
+              created_at: new Date().toISOString()
+            };
+            
+            const { data, error } = await supabase
+              .from('recurring_payments')
+              .insert([newPayment])
+              .select()
+              .single();
+              
+            if (error) {
+              console.error('Error creating recurring payment:', error);
+            } else {
+              generatedCount++;
+              console.log('✅ Created recurring payment:', data);
+            }
+          }
+          
+          // Calcular siguiente fecha según frecuencia
+          switch (invoice.recurrence_type) {
+            case 'monthly':
+              nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+              break;
+            case 'quarterly':
+              nextDueDate.setMonth(nextDueDate.getMonth() + 3);
+              break;
+            case 'semi_annual':
+              nextDueDate.setMonth(nextDueDate.getMonth() + 6);
+              break;
+            case 'annual':
+              nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
+              break;
+          }
+        }
+        
+        // Actualizar next_due_date en la factura
+        if (nextDueDate.toISOString().split('T')[0] !== invoice.next_due_date) {
+          await supabase
+            .from('recurring_invoices')
+            .update({ next_due_date: nextDueDate.toISOString().split('T')[0] })
+            .eq('id', invoice.id);
+        }
+      }
+      
+      console.log(`✅ [Context] Generated ${generatedCount} recurring payments manually`);
+      
+      // Recargar datos
+      await fetchRecurringPayments();
+      await fetchRecurringInvoices();
+      
+      if (generatedCount > 0) {
+        toast.success(`Se generaron ${generatedCount} pagos recurrentes`);
+      } else {
+        toast.info('No hay pagos recurrentes pendientes por generar');
+      }
+      
+      return generatedCount;
+    } catch (error) {
+      console.error('❌ [Context] Error generating recurring payments manually:', error);
+      toast.error('Error al generar pagos recurrentes');
+      return 0;
+    }
+  };
+
+  // Función de prueba para generar pagos recurrentes con fechas pasadas
+  const generateTestRecurringPayments = async () => {
+    console.log('🧪 [Context] Generating TEST recurring payments with past dates...');
+    try {
+      let generatedCount = 0;
+      
+      for (const invoice of recurringInvoices) {
+        if (invoice.status !== 'active') continue;
+        
+        // Para pruebas, usar fechas pasadas
+        const testStartDate = new Date('2024-01-01'); // Enero 2024
+        const today = new Date();
+        let currentDate = new Date(testStartDate);
+        
+        // Generar hasta 6 pagos de prueba (6 meses)
+        let paymentsToGenerate = 6;
+        
+        while (paymentsToGenerate > 0 && currentDate <= today) {
+          // Verificar si ya existe un pago para esta fecha
+          const existingPayment = recurringPayments.find(p => 
+            p.recurring_invoice_id === invoice.id && 
+            new Date(p.due_date).toDateString() === currentDate.toDateString()
+          );
+          
+          if (!existingPayment) {
+            // Crear nuevo pago de prueba (solo columnas que existen)
+            const newPayment = {
+              recurring_invoice_id: invoice.id,
+              amount: invoice.amount,
+              due_date: currentDate.toISOString().split('T')[0],
+              status: Math.random() > 0.5 ? 'paid' : 'pending' as const, // Mezclar estados
+              payment_date: Math.random() > 0.5 ? currentDate.toISOString().split('T')[0] : null,
+              created_at: new Date().toISOString()
+            };
+            
+            const { data, error } = await supabase
+              .from('recurring_payments')
+              .insert([newPayment])
+              .select()
+              .single();
+              
+            if (error) {
+              console.error('Error creating test recurring payment:', error);
+            } else {
+              generatedCount++;
+              console.log('✅ Created test recurring payment:', data);
+            }
+          }
+          
+          // Avanzar según frecuencia (para pruebas, usar mensual)
+          currentDate.setMonth(currentDate.getMonth() + 1);
+          paymentsToGenerate--;
+        }
+      }
+      
+      console.log(`✅ [Context] Generated ${generatedCount} TEST recurring payments`);
+      
+      // Recargar datos
+      await fetchRecurringPayments();
+      
+      if (generatedCount > 0) {
+        toast.success(`Se generaron ${generatedCount} pagos de prueba`);
+      } else {
+        toast.info('No se generaron pagos de prueba');
+      }
+      
+      return generatedCount;
+    } catch (error) {
+      console.error('❌ [Context] Error generating test recurring payments:', error);
+      toast.error('Error al generar pagos de prueba');
+      return 0;
+    }
+  };
+
+  // Función para eliminar factura recurrente
+  const deleteRecurringInvoice = async (invoiceId: string): Promise<boolean> => {
+    try {
+      // Primero eliminar todos los pagos asociados
+      const { error: paymentsError } = await supabase
+        .from('recurring_payments')
+        .delete()
+        .eq('recurring_invoice_id', invoiceId);
+      
+      if (paymentsError) {
+        console.error('Error deleting recurring payments:', paymentsError);
+        toast.error('Error al eliminar los pagos asociados');
+        return false;
+      }
+      
+      // Luego eliminar la factura recurrente
+      const { error: invoiceError } = await supabase
+        .from('recurring_invoices')
+        .delete()
+        .eq('id', invoiceId);
+      
+      if (invoiceError) {
+        console.error('Error deleting recurring invoice:', invoiceError);
+        toast.error('Error al eliminar la factura recurrente');
+        return false;
+      }
+      
+      // Actualizar el estado local
+      setRecurringInvoices(recurringInvoices.filter(inv => inv.id !== invoiceId));
+      setRecurringPayments(recurringPayments.filter(payment => payment.recurring_invoice_id !== invoiceId));
+      
+      // Forzar recarga de datos desde la base de datos
+      await fetchRecurringInvoices();
+      await fetchRecurringPayments();
+      
+      toast.success('Factura recurrente eliminada correctamente');
+      return true;
+    } catch (error) {
+      console.error('Error deleting recurring invoice:', error);
+      toast.error('Error al eliminar la factura recurrente');
+      return false;
+    }
+  };
+
+  // Función para eliminar proyecto
+  const deleteProject = async (projectId: string): Promise<boolean> => {
+    try {
+      // Primero eliminar todos los pagos asociados
+      const { error: paymentsError } = await supabase
+        .from('project_payments')
+        .delete()
+        .eq('project_id', projectId);
+      
+      if (paymentsError) {
+        console.error('Error deleting project payments:', paymentsError);
+        toast.error('Error al eliminar los pagos asociados');
+        return false;
+      }
+      
+      // Luego eliminar el proyecto
+      const { error: projectError } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
+      
+      if (projectError) {
+        console.error('Error deleting project:', projectError);
+        toast.error('Error al eliminar el proyecto');
+        return false;
+      }
+      
+      // Actualizar el estado local
+      setProjects(projects.filter(project => project.id !== projectId));
+      setProjectPayments(projectPayments.filter(payment => payment.project_id !== projectId));
+      
+      toast.success('Proyecto eliminado correctamente');
+      return true;
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast.error('Error al eliminar el proyecto');
+      return false;
+    }
+  };
+
   // Estadísticas específicas para proyectos
   const getProjectStats = () => {
     const totalAmount = projectPayments.reduce((total, payment) => total + (payment.amount || 0), 0);
@@ -724,6 +977,7 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     const paidAmount = recurringPayments
       .filter(payment => payment.status === 'paid')
       .reduce((total, payment) => total + (payment.amount || 0), 0);
+
     const pendingAmount = recurringPayments
       .filter(payment => payment.status === 'pending')
       .reduce((total, payment) => total + (payment.amount || 0), 0);
@@ -824,7 +1078,11 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     getTotalPaid,
     getTotalAmount,
     addOrUpdateRecurringInvoice,
+    deleteRecurringInvoice,
+    deleteProject,
     generateRecurringPayments,
+    generateRecurringPaymentsManually,
+    generateTestRecurringPayments,
     updateRecurringPaymentStatus,
   };
 

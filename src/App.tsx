@@ -26,7 +26,7 @@ function App() {
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <header className="text-center pt-8 sm:pt-12">
           <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-tokyo-blue to-tokyo-cyan">
-            Control de Jornadas
+            Gestión de Proyectos
           </h1>
         </header>
 

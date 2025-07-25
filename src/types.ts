@@ -37,17 +37,17 @@ export interface MonthStats {
 // Tipos para el sistema de proyectos
 export type ProjectStatus = 'active' | 'completed' | 'paused' | 'cancelled';
 export type PhaseStatus = 'pending' | 'in_progress' | 'completed';
-export type PaymentStatus = 'pending' | 'paid';
+export type PaymentStatus = 'pending' | 'invoiced' | 'paid';
 
 export interface Project {
   id: string;
   name: string;
   description?: string;
-  client_id?: string;
+  client_id?: string | null;
   total_amount: number;
   status: ProjectStatus;
   start_date: string;
-  deadline?: string;
+  deadline?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -83,13 +83,13 @@ export type RecurringPaymentStatus = 'pending' | 'paid' | 'overdue';
 
 export interface RecurringInvoice {
   id: string;
-  client_id?: string;
+  client_id?: string | null;
   name: string;
   description?: string;
   amount: number;
   recurrence_type: RecurrenceType;
   start_date: string;
-  end_date?: string; // Fecha opcional de finalización
+  end_date?: string | null; // Fecha opcional de finalización
   next_due_date: string;
   status: InvoiceStatus;
   payment_status: 'pending' | 'paid'; // Estado de pago simple

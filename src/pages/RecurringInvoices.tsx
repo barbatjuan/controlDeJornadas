@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useWorkData } from '../contexts/WorkDataContext';
 import { RecurringInvoice, RecurringPayment } from '../types';
-import { PlusCircle, Calendar, DollarSign, AlertCircle, Clock, CheckCircle, Users, Edit, Play } from 'lucide-react';
+import { PlusCircle, Calendar, DollarSign, AlertCircle, Clock, CheckCircle, Users, Edit, Play, Trash2 } from 'lucide-react';
 import RecurringInvoiceModal from '../components/RecurringInvoiceModal';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import { toast } from 'sonner';
 
 const RecurringInvoices: React.FC = () => {
@@ -12,15 +13,18 @@ const RecurringInvoices: React.FC = () => {
     clients, 
     isLoaded, 
     addOrUpdateRecurringInvoice, 
-    generateRecurringPayments,
+    deleteRecurringInvoice,
     updateRecurringPaymentStatus
   } = useWorkData();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<RecurringInvoice | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<RecurringInvoice | null>(null);
 
   // Verificar si las tablas están configuradas
-  const tablesConfigured = isLoaded && (recurringInvoices.length > 0 || recurringPayments.length > 0);
+  // Las tablas se consideran configuradas si los datos están cargados (aunque estén vacías)
+  const tablesConfigured = isLoaded;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-ES', { 
@@ -89,6 +93,24 @@ const RecurringInvoices: React.FC = () => {
     setSelectedInvoice(null);
   };
 
+  const handleDelete = (invoice: RecurringInvoice) => {
+    setInvoiceToDelete(invoice);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (invoiceToDelete) {
+      await deleteRecurringInvoice(invoiceToDelete.id);
+      setDeleteDialogOpen(false);
+      setInvoiceToDelete(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setInvoiceToDelete(null);
+  };
+
   const getUpcomingPayments = () => {
     const today = new Date();
     const nextWeek = new Date();
@@ -135,26 +157,34 @@ const RecurringInvoices: React.FC = () => {
 
       {/* Alerts */}
       {overduePayments.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-red-800">
-            <AlertCircle size={20} />
-            <h3 className="font-semibold">Pagos Vencidos</h3>
+        <div className="bg-tokyo-bg border border-red-400/30 rounded-lg p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <AlertCircle className="text-red-500" size={22} />
+            </div>
+            <div>
+              <h3 className="font-semibold text-tokyo-fg mb-1">Pagos Vencidos</h3>
+              <p className="text-tokyo-fg/70 text-sm">
+                {overduePayments.length} pago{overduePayments.length > 1 ? 's' : ''} {overduePayments.length > 1 ? 'requieren' : 'requiere'} atención inmediata
+              </p>
+            </div>
           </div>
-          <p className="text-red-700 mt-1">
-            Tienes {overduePayments.length} pago{overduePayments.length > 1 ? 's' : ''} vencido{overduePayments.length > 1 ? 's' : ''}.
-          </p>
         </div>
       )}
 
       {upcomingPayments.length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-yellow-800">
-            <Clock size={20} />
-            <h3 className="font-semibold">Próximos Vencimientos</h3>
+        <div className="bg-tokyo-bg border border-yellow-400/30 rounded-lg p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <Clock className="text-yellow-500" size={22} />
+            </div>
+            <div>
+              <h3 className="font-semibold text-tokyo-fg mb-1">Próximos Vencimientos</h3>
+              <p className="text-tokyo-fg/70 text-sm">
+                {upcomingPayments.length} pago{upcomingPayments.length > 1 ? 's' : ''} {upcomingPayments.length > 1 ? 'vencen' : 'vence'} en los próximos 7 días
+              </p>
+            </div>
           </div>
-          <p className="text-yellow-700 mt-1">
-            Tienes {upcomingPayments.length} pago{upcomingPayments.length > 1 ? 's' : ''} próximo{upcomingPayments.length > 1 ? 's' : ''} a vencer en los próximos 7 días.
-          </p>
         </div>
       )}
 
@@ -291,6 +321,13 @@ const RecurringInvoices: React.FC = () => {
                       >
                         <Edit className="w-4 h-4" />
                       </button>
+                      <button
+                        onClick={() => handleDelete(invoice)}
+                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                        title="Eliminar factura"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -311,6 +348,16 @@ const RecurringInvoices: React.FC = () => {
           }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={deleteDialogOpen}
+        title="Eliminar Factura Recurrente"
+        message="¿Estás seguro de que quieres eliminar esta factura recurrente?"
+        itemName={invoiceToDelete ? `${invoiceToDelete.name} - ${clients.find(c => c.id === invoiceToDelete.client_id)?.name || 'Sin cliente'}` : ''}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </div>
   );
 };

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MoreVertical, Edit, Trash2, Calendar, User, Euro, Clock } from 'lucide-react';
 import { Project, Client, ProjectPhase, ProjectPayment } from '../types';
 import { supabase } from '../utils/supabase';
-import ConfirmDialog from './ConfirmDialog';
+import DeleteConfirmDialog from './DeleteConfirmDialog';
 
 interface ProjectCardProps {
   project: Project;
@@ -259,15 +259,16 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, client, onEdit, onDe
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <ConfirmDialog
+      <DeleteConfirmDialog
         isOpen={showDeleteDialog}
         title="Eliminar Proyecto"
-        message={`¿Estás seguro de que quieres eliminar el proyecto "${project.name}"? Esta acción no se puede deshacer.`}
+        message="¿Estás seguro de que quieres eliminar este proyecto?"
+        itemName={`${project.name}${client ? ` - ${client.name}` : ''}`}
         onConfirm={() => {
           onDelete(project.id);
           setShowDeleteDialog(false);
         }}
-        onClose={() => setShowDeleteDialog(false)}
+        onCancel={() => setShowDeleteDialog(false)}
       />
 
       {/* Click outside to close menu */}

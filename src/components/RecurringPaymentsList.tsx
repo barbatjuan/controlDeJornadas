@@ -121,6 +121,8 @@ const RecurringPaymentsList: React.FC<RecurringPaymentsListProps> = ({
     }
   };
 
+
+
   const getRecurrenceLabel = (type: string) => {
     const labels = {
       monthly: 'Mensual',

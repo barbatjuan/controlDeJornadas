@@ -86,15 +86,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, clients, onSave, o
     }
   };
 
-  const getStatusColor = (status: ProjectStatus) => {
-    switch (status) {
-      case 'active': return 'text-green-400';
-      case 'completed': return 'text-blue-400';
-      case 'paused': return 'text-yellow-400';
-      case 'cancelled': return 'text-red-400';
-      default: return 'text-gray-400';
-    }
-  };
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

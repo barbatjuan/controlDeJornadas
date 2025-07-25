@@ -27,7 +27,7 @@ interface ClientStats {
 }
 
 const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
-  const { workDays, projectPayments, projects, recurringInvoices } = useWorkData();
+  const { workDays, projectPayments, projects, recurringInvoices, recurringPayments } = useWorkData();
   const [clientStats, setClientStats] = useState<ClientStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -46,10 +46,12 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
       return project && project.client_id === client.id;
     });
     
-    // 3. Filtrar facturas recurrentes por cliente
-    const clientRecurringInvoices = recurringInvoices.filter(invoice => 
-      invoice.client_id === client.id
-    );
+    // 3. Filtrar pagos recurrentes por cliente
+    const clientRecurringInvoices = recurringInvoices.filter(inv => inv.client_id === client.id);
+    const clientRecurringPayments = recurringPayments.filter(payment => {
+      const invoice = recurringInvoices.find(inv => inv.id === payment.recurring_invoice_id);
+      return invoice && invoice.client_id === client.id;
+    });
 
     // Calcular estadísticas unificadas
     let totalAmount = 0;
@@ -96,12 +98,25 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
     
     // Procesar pagos de proyectos
     clientProjectPayments.forEach(payment => {
-      processPayment(payment.amount || 0, payment.status, payment.date);
+      processPayment(payment.amount || 0, payment.status, payment.due_date);
     });
     
-    // Procesar facturas recurrentes
-    clientRecurringInvoices.forEach(invoice => {
-      processPayment(invoice.amount || 0, invoice.payment_status, invoice.next_due_date);
+    // Si no hay pagos de proyectos registrados, considerar el total del proyecto como pendiente
+    const clientProjects = projects.filter(project => project.client_id === client.id);
+    clientProjects.forEach(project => {
+      const projectPaymentsForThisProject = clientProjectPayments.filter(p => p.project_id === project.id);
+      const totalPaidForProject = projectPaymentsForThisProject.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
+      const remainingAmount = project.total_amount - totalPaidForProject;
+      
+      if (remainingAmount > 0) {
+        // Añadir el monto restante como pendiente
+        processPayment(remainingAmount, 'pending', project.start_date);
+      }
+    });
+    
+    // Procesar pagos recurrentes
+    clientRecurringPayments.forEach(payment => {
+      processPayment(payment.amount || 0, payment.status, payment.due_date);
     });
     
     // Calcular promedios mensuales
@@ -127,7 +142,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
     });
     
     setIsLoading(false);
-  }, [client, workDays, projectPayments, projects, recurringInvoices]);
+  }, [client, workDays, projectPayments, projects, recurringInvoices, recurringPayments]);
 
   // Función para formatear montos en euros
   const formatCurrency = (amount: number) => {
@@ -232,7 +247,7 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-tokyo-fg mb-3">Estado de pagos</h3>
             <div className="bg-tokyo-bgHighlight p-4 rounded-lg border border-tokyo-border">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                   <h4 className="text-sm text-tokyo-fgDark mb-1">Pendiente</h4>
                   <p className="font-bold text-orange-500">{formatCurrency(clientStats.statusBreakdown.pending)}</p>
@@ -246,8 +261,167 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
                   <p className="font-bold text-green-500">{formatCurrency(clientStats.statusBreakdown.paid)}</p>
                 </div>
               </div>
+              
+              {/* Lista de pagos individuales */}
+              <div className="border-t border-tokyo-border/50 pt-4">
+                <h4 className="text-sm font-semibold text-tokyo-fg mb-3">Detalle de pagos</h4>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {(() => {
+                    const allPayments = [];
+                    
+                    // Añadir jornadas como pagos
+                    const clientWorkDays = workDays.filter(day => day.client_id === client.id);
+                    clientWorkDays.forEach(day => {
+                      allPayments.push({
+                        id: `workday-${day.id}`,
+                        type: 'Jornada',
+                        description: day.description || 'Trabajo realizado',
+                        amount: day.amount,
+                        status: day.status,
+                        date: day.date,
+                        icon: '📅'
+                      });
+                    });
+                    
+                    // Añadir pagos de proyectos
+                    const clientProjectPayments = projectPayments.filter(payment => {
+                      const project = projects.find(p => p.id === payment.project_id);
+                      return project && project.client_id === client.id;
+                    });
+                    clientProjectPayments.forEach(payment => {
+                      const project = projects.find(p => p.id === payment.project_id);
+                      allPayments.push({
+                        id: `project-${payment.id}`,
+                        type: 'Proyecto',
+                        description: project?.name || 'Proyecto',
+                        amount: payment.amount,
+                        status: payment.status,
+                        date: payment.due_date,
+                        icon: '🚀'
+                      });
+                    });
+                    
+                    // Añadir pagos recurrentes
+                    const clientRecurringPayments = recurringPayments.filter(payment => {
+                      const invoice = recurringInvoices.find(inv => inv.id === payment.recurring_invoice_id);
+                      return invoice && invoice.client_id === client.id;
+                    });
+                    clientRecurringPayments.forEach(payment => {
+                      const invoice = recurringInvoices.find(inv => inv.id === payment.recurring_invoice_id);
+                      allPayments.push({
+                        id: `recurring-${payment.id}`,
+                        type: 'Recurrente',
+                        description: invoice?.name || 'Factura recurrente',
+                        amount: payment.amount,
+                        status: payment.status,
+                        date: payment.due_date,
+                        icon: '🔄'
+                      });
+                    });
+                    
+                    // Ordenar por fecha (más reciente primero)
+                    allPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                    
+                    return allPayments.length > 0 ? allPayments.map(payment => (
+                      <div key={payment.id} className="flex items-center justify-between py-2 px-3 bg-tokyo-bg rounded border border-tokyo-border/30">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{payment.icon}</span>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs px-2 py-1 bg-tokyo-border/20 rounded text-tokyo-fgDark">
+                                {payment.type}
+                              </span>
+                              <span className="text-sm text-tokyo-fg font-medium">
+                                {payment.description}
+                              </span>
+                            </div>
+                            <p className="text-xs text-tokyo-fgDark mt-1">
+                              {new Date(payment.date).toLocaleDateString('es-ES')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-tokyo-fg">
+                            {formatCurrency(payment.amount)}
+                          </p>
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            payment.status === 'paid' ? 'bg-green-100 text-green-700' :
+                            payment.status === 'invoiced' ? 'bg-blue-100 text-blue-700' :
+                            'bg-orange-100 text-orange-700'
+                          }`}>
+                            {payment.status === 'paid' ? 'Pagado' :
+                             payment.status === 'invoiced' ? 'Facturado' : 'Pendiente'}
+                          </span>
+                        </div>
+                      </div>
+                    )) : (
+                      <p className="text-sm text-tokyo-fgDark text-center py-4">
+                        No hay pagos registrados para este cliente
+                      </p>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* Proyectos del cliente */}
+          {(() => {
+            const clientProjects = projects.filter(project => project.client_id === client.id);
+            return clientProjects.length > 0 ? (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-tokyo-fg mb-3">Proyectos</h3>
+                <div className="space-y-3">
+                  {clientProjects.map(project => {
+                    const projectPaymentsForProject = projectPayments.filter(payment => payment.project_id === project.id);
+                    const totalPaid = projectPaymentsForProject.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
+                    const totalPending = project.total_amount - totalPaid;
+                    
+                    return (
+                      <div key={project.id} className="bg-tokyo-bgHighlight p-4 rounded-lg border border-tokyo-border">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="font-semibold text-tokyo-fg">{project.name}</h4>
+                            {project.description && (
+                              <p className="text-sm text-tokyo-fgDark mt-1">{project.description}</p>
+                            )}
+                          </div>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ${
+                            project.status === 'completed' ? 'bg-green-500' :
+                            project.status === 'active' ? 'bg-blue-500' :
+                            project.status === 'paused' ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}>
+                            {project.status === 'completed' ? 'Completado' :
+                             project.status === 'active' ? 'Activo' :
+                             project.status === 'paused' ? 'Pausado' : 'Cancelado'}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
+                          <div>
+                            <p className="text-xs text-tokyo-fgDark">Total proyecto</p>
+                            <p className="font-semibold text-tokyo-fg">{formatCurrency(project.total_amount)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-tokyo-fgDark">Pagado</p>
+                            <p className="font-semibold text-green-500">{formatCurrency(totalPaid)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-tokyo-fgDark">Pendiente</p>
+                            <p className="font-semibold text-orange-500">{formatCurrency(totalPending)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-tokyo-fgDark">Fecha inicio</p>
+                            <p className="text-sm text-tokyo-fg">{new Date(project.start_date).toLocaleDateString('es-ES')}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null;
+          })()}
 
           {/* Desglose mensual */}
           {Object.keys(clientStats.monthlyStats).length > 0 ? (

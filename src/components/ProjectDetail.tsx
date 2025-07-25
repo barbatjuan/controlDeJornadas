@@ -410,10 +410,11 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, client, onClose,
                       />
                       <select
                         value={newPayment.status}
-                        onChange={(e) => setNewPayment({ ...newPayment, status: e.target.value as 'pending' | 'paid' })}
+                        onChange={(e) => setNewPayment({ ...newPayment, status: e.target.value as 'pending' | 'invoiced' | 'paid' })}
                         className="px-3 py-2 bg-tokyo-bg border border-tokyo-border rounded text-tokyo-fg focus:outline-none focus:ring-2 focus:ring-tokyo-blue"
                       >
                         <option value="pending">Pendiente</option>
+                        <option value="invoiced">Facturado</option>
                         <option value="paid">Pagado</option>
                       </select>
                     </div>
@@ -463,9 +464,17 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, client, onClose,
                               <Euro className="text-tokyo-cyan" size={16} />
                               <span className="font-medium text-tokyo-fg">€{payment.amount.toFixed(2)}</span>
                               <span className={`px-2 py-1 rounded-full text-xs ${
-                                payment.status === 'paid' ? 'bg-green-500 text-white' : 'bg-yellow-500 text-black'
+                                payment.status === 'paid' 
+                                  ? 'bg-green-500 text-white' 
+                                  : payment.status === 'invoiced'
+                                  ? 'bg-blue-500 text-white'
+                                  : 'bg-yellow-500 text-black'
                               }`}>
-                                {payment.status === 'paid' ? 'Pagado' : 'Pendiente'}
+                                {payment.status === 'paid' 
+                                  ? 'Pagado' 
+                                  : payment.status === 'invoiced'
+                                  ? 'Facturado'
+                                  : 'Pendiente'}
                               </span>
                             </div>
                             <div className="text-sm text-tokyo-fgDark">
