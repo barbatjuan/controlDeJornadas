@@ -15,7 +15,8 @@ interface IWorkDataContext {
   recurringPayments: RecurringPayment[];
   selectedMonth: Date;
   setSelectedMonth: (date: Date) => void;
-  addOrUpdateClient: (client: Partial<Client>) => void;
+  addOrUpdateClient: (client: Partial<Client>) => Promise<Client | null>;
+  deleteClient: (clientId: string) => Promise<boolean>;
   addOrUpdateWorkDays: (days: WorkDay[]) => void;
   addOrUpdateSecondWorkDay: (day: WorkDay) => void;
   removeWorkDay: (date: string, isSecondEntry?: boolean) => void;
@@ -32,6 +33,7 @@ interface IWorkDataContext {
   addOrUpdateRecurringInvoice: (invoice: Partial<RecurringInvoice>) => Promise<void>;
   deleteRecurringInvoice: (invoiceId: string) => Promise<boolean>;
   deleteProject: (projectId: string) => Promise<boolean>;
+  fetchRecurringInvoices: () => Promise<void>;
   generateRecurringPayments: () => Promise<number>;
   generateRecurringPaymentsManually: () => Promise<number>;
   generateTestRecurringPayments: () => Promise<number>;
@@ -188,15 +190,28 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     fetchRecurringPayments();
   }, []); // Solo ejecutar una vez al montar el componente
 
-  const addOrUpdateClient = async (client: Partial<Client>) => {
-    console.log('➕ [Context] Upserting client:', client);
+  const addOrUpdateClient = async (client: Partial<Client>): Promise<Client | null> => {
     try {
-      const { error } = await supabase.from('clients').upsert(client, { onConflict: 'id' });
-      if (error) throw error;
-      console.log('✅ [Context] Client upsert successful');
-      await fetchClients(); // Recargar clientes para que todos los componentes se actualicen
+      const { data, error } = await supabase
+        .from('clients')
+        .upsert(client)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ [Context] Error saving client:', error);
+        toast.error(`Error al guardar el cliente: ${error.message}`);
+        return null;
+      }
+
+      console.log('✅ [Context] Client saved successfully:', data);
+      toast.success('Cliente guardado con éxito');
+      await fetchClients(); // Refrescar la lista de clientes
+      return data;
     } catch (error) {
-      console.error('❌ [Context] Error upserting client:', error);
+      console.error('❌ [Context] Exception saving client:', error);
+      toast.error('Se produjo una excepción al guardar el cliente.');
+      return null;
     }
   };
 
@@ -988,7 +1003,90 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     return { totalAmount, paidAmount, pendingAmount, overdueAmount };
   };
 
-  const updateRecurringPaymentStatus = async (paymentId: string, status: 'paid' | 'pending', paymentDate?: string) => {
+  // Función para eliminar un cliente
+const deleteClient = async (clientId: string): Promise<boolean> => {
+  console.log(`🗑️ [Context] Deleting client ${clientId}...`);
+  try {
+    // Verificar si el cliente tiene jornadas asociadas
+    const { data: relatedWorkDays, error: workDaysError } = await supabase
+      .from('work_days')
+      .select('id')
+      .eq('client_id', clientId)
+      .limit(1);
+    
+    if (workDaysError) {
+      console.error('❌ [Context] Error checking related work days:', workDaysError);
+      toast.error('Error al verificar jornadas asociadas');
+      return false;
+    }
+    
+    if (relatedWorkDays && relatedWorkDays.length > 0) {
+      toast.error('No se puede eliminar un cliente con jornadas asociadas');
+      return false;
+    }
+    
+    // Verificar si el cliente tiene proyectos asociados
+    const { data: relatedProjects, error: projectsError } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('client_id', clientId)
+      .limit(1);
+    
+    if (projectsError) {
+      console.error('❌ [Context] Error checking related projects:', projectsError);
+      toast.error('Error al verificar proyectos asociados');
+      return false;
+    }
+    
+    if (relatedProjects && relatedProjects.length > 0) {
+      toast.error('No se puede eliminar un cliente con proyectos asociados');
+      return false;
+    }
+    
+    // Verificar si el cliente tiene facturas recurrentes asociadas
+    const { data: relatedInvoices, error: invoicesError } = await supabase
+      .from('recurring_invoices')
+      .select('id')
+      .eq('client_id', clientId)
+      .limit(1);
+    
+    if (invoicesError) {
+      console.error('❌ [Context] Error checking related invoices:', invoicesError);
+      toast.error('Error al verificar facturas asociadas');
+      return false;
+    }
+    
+    if (relatedInvoices && relatedInvoices.length > 0) {
+      toast.error('No se puede eliminar un cliente con facturas recurrentes asociadas');
+      return false;
+    }
+    
+    // Finalmente, eliminar el cliente
+    const { error: deleteError } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', clientId);
+    
+    if (deleteError) {
+      console.error('❌ [Context] Error deleting client:', deleteError);
+      toast.error('Error al eliminar el cliente');
+      return false;
+    }
+    
+    // Actualizar el estado local
+    setClients(clients.filter(client => client.id !== clientId));
+    
+    console.log(`✅ [Context] Client ${clientId} deleted successfully`);
+    toast.success('Cliente eliminado correctamente');
+    return true;
+  } catch (error) {
+    console.error('❌ [Context] Exception deleting client:', error);
+    toast.error('Se produjo un error al eliminar el cliente');
+    return false;
+  }
+};
+
+const updateRecurringPaymentStatus = async (paymentId: string, status: 'paid' | 'pending', paymentDate?: string) => {
     console.log(`🔄 [Context] Updating recurring payment ${paymentId} to ${status}...`);
     try {
       // Intentar actualizar en la base de datos si las tablas existen
@@ -1064,6 +1162,7 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     selectedMonth,
     setSelectedMonth,
     addOrUpdateClient,
+    deleteClient,
     addOrUpdateWorkDays,
     addOrUpdateSecondWorkDay,
     removeWorkDay,
@@ -1080,6 +1179,7 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     addOrUpdateRecurringInvoice,
     deleteRecurringInvoice,
     deleteProject,
+    fetchRecurringInvoices,
     generateRecurringPayments,
     generateRecurringPaymentsManually,
     generateTestRecurringPayments,

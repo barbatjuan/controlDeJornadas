@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useWorkData } from '../contexts/WorkDataContext';
-import { RecurringInvoice, RecurrenceType, InvoiceStatus } from '../types';
-import { X, Calendar, DollarSign, User, FileText, Clock, Settings } from 'lucide-react';
+import { RecurringInvoice, RecurrenceType, InvoiceStatus, Client } from '../types';
+import { X, Calendar, User, FileText, Clock, Settings, PlusCircle } from 'lucide-react';
+import ClientModal from './ClientModal';
 
 interface RecurringInvoiceModalProps {
   invoice: RecurringInvoice | null;
@@ -14,7 +15,8 @@ const RecurringInvoiceModal: React.FC<RecurringInvoiceModalProps> = ({
   onSave,
   onClose
 }) => {
-  const { clients } = useWorkData();
+  const { clients, addOrUpdateClient } = useWorkData();
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -127,6 +129,14 @@ const RecurringInvoiceModal: React.FC<RecurringInvoiceModalProps> = ({
     onSave(invoiceData);
   };
 
+  const handleSaveNewClient = async (clientData: { name: string; company?: string }) => {
+    const newClient = await addOrUpdateClient(clientData);
+    if (newClient) {
+      setFormData(prev => ({ ...prev, client_id: newClient.id }));
+      setIsClientModalOpen(false);
+    }
+  };
+
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
@@ -166,102 +176,111 @@ const RecurringInvoiceModal: React.FC<RecurringInvoiceModalProps> = ({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Basic Info */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-tokyo-fg flex items-center gap-2">
-              <FileText size={18} />
-              Información Básica
-            </h3>
-            
-            <div>
-              <label className="block text-sm font-medium text-tokyo-fg mb-2">
-                Nombre de la factura *
-              </label>
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Nombre de factura */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-tokyo-fgDark">
+              Nombre <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <FileText size={18} className="text-tokyo-fgDark" />
+              </div>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg bg-tokyo-bgHighlight text-tokyo-fg focus:outline-none focus:ring-2 focus:ring-tokyo-blue ${
-                  errors.name ? 'border-red-500' : 'border-tokyo-border'
-                }`}
-                placeholder="ej. Mantenimiento Web Mensual"
-              />
-              {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-tokyo-fg mb-2">
-                Descripción
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                className="w-full px-3 py-2 border border-tokyo-border rounded-lg bg-tokyo-bgHighlight text-tokyo-fg focus:outline-none focus:ring-2 focus:ring-tokyo-blue"
-                rows={3}
-                placeholder="Descripción opcional del servicio..."
+                className="pl-10 w-full p-2 border border-tokyo-border bg-tokyo-bg text-tokyo-fg rounded-lg focus:ring-1 focus:ring-tokyo-blue focus:border-tokyo-blue"
+                placeholder="Ej: Mantenimiento Web"
               />
             </div>
+            {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-tokyo-fg mb-2 flex items-center gap-2">
-                <User size={16} />
-                Cliente
-              </label>
+          {/* Cliente */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-tokyo-fgDark">Cliente</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <User size={18} className="text-tokyo-fgDark" />
+              </div>
               <select
                 value={formData.client_id}
                 onChange={(e) => handleInputChange('client_id', e.target.value)}
-                className="w-full px-3 py-2 border border-tokyo-border rounded-lg bg-tokyo-bgHighlight text-tokyo-fg focus:outline-none focus:ring-2 focus:ring-tokyo-blue"
+                className="pl-10 w-full p-2 border border-tokyo-border bg-tokyo-bg text-tokyo-fg rounded-lg appearance-none focus:ring-1 focus:ring-tokyo-blue focus:border-tokyo-blue"
               >
-                <option value="">Sin cliente específico</option>
-                {clients.map((client) => (
+                <option value="">Seleccionar cliente</option>
+                {clients.map(client => (
                   <option key={client.id} value={client.id}>
-                    {client.name}
+                    {client.name} {client.company ? `(${client.company})` : ''}
                   </option>
                 ))}
               </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                <button
+                  type="button"
+                  onClick={() => setIsClientModalOpen(true)}
+                  className="text-tokyo-blue hover:text-blue-700"
+                >
+                  <PlusCircle size={18} />
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Financial Info */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-tokyo-fg flex items-center gap-2">
-              <DollarSign size={18} />
-              Información Financiera
-            </h3>
-            
-            <div>
-              <label className="block text-sm font-medium text-tokyo-fg mb-2">
-                Monto *
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2 text-tokyo-fgDark">€</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.amount}
-                  onChange={(e) => handleInputChange('amount', e.target.value)}
-                  className={`w-full pl-8 pr-3 py-2 border rounded-lg bg-tokyo-bgHighlight text-tokyo-fg focus:outline-none focus:ring-2 focus:ring-tokyo-blue ${
-                    errors.amount ? 'border-red-500' : 'border-tokyo-border'
-                  }`}
-                  placeholder="0.00"
-                />
+          {/* Descripción */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-tokyo-fgDark">Descripción</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <FileText size={18} className="text-tokyo-fgDark" />
               </div>
-              {errors.amount && <p className="text-red-500 text-sm mt-1">{errors.amount}</p>}
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                className="pl-10 w-full p-2 border border-tokyo-border bg-tokyo-bg text-tokyo-fg rounded-lg focus:ring-1 focus:ring-tokyo-blue focus:border-tokyo-blue resize-none"
+                rows={3}
+                placeholder="Descripción del servicio recurrente..."
+              />
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-tokyo-fg mb-2 flex items-center gap-2">
-                <Clock size={16} />
-                Frecuencia de facturación
-              </label>
+          {/* Monto */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-tokyo-fgDark">
+              Monto <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <span className="text-tokyo-fgDark font-semibold">€</span>
+              </div>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.amount}
+                onChange={(e) => handleInputChange('amount', e.target.value)}
+                className="pl-8 pr-8 w-full p-2 border border-tokyo-border bg-tokyo-bg text-tokyo-fg rounded-lg focus:ring-1 focus:ring-tokyo-blue focus:border-tokyo-blue"
+                placeholder="0.00"
+              />
+
+            </div>
+            {errors.amount && <p className="text-sm text-red-500">{errors.amount}</p>}
+          </div>
+
+          {/* Tipo de recurrencia */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-tokyo-fgDark">Frecuencia</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <Clock size={18} className="text-tokyo-fgDark" />
+              </div>
               <select
                 value={formData.recurrence_type}
-                onChange={(e) => handleInputChange('recurrence_type', e.target.value as RecurrenceType)}
-                className="w-full px-3 py-2 border border-tokyo-border rounded-lg bg-tokyo-bgHighlight text-tokyo-fg focus:outline-none focus:ring-2 focus:ring-tokyo-blue"
+                onChange={(e) => handleInputChange('recurrence_type', e.target.value)}
+                className="pl-10 w-full p-2 border border-tokyo-border bg-tokyo-bg text-tokyo-fg rounded-lg appearance-none focus:ring-1 focus:ring-tokyo-blue focus:border-tokyo-blue"
               >
-                {recurrenceOptions.map((option) => (
+                {recurrenceOptions.map(option => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -270,129 +289,103 @@ const RecurringInvoiceModal: React.FC<RecurringInvoiceModalProps> = ({
             </div>
           </div>
 
-          {/* Dates */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-tokyo-fg flex items-center gap-2">
-              <Calendar size={18} />
-              Fechas
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-tokyo-fg mb-2">
-                  Fecha de inicio *
-                </label>
+          {/* Fechas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-tokyo-fgDark">
+                Fecha de inicio <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
                 <input
                   type="date"
                   value={formData.start_date}
                   onChange={(e) => handleInputChange('start_date', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg bg-tokyo-bgHighlight text-tokyo-fg focus:outline-none focus:ring-2 focus:ring-tokyo-blue ${
-                    errors.start_date ? 'border-red-500' : 'border-tokyo-border'
-                  }`}
+                  className="w-full p-2 border border-tokyo-border bg-tokyo-bg text-tokyo-fg rounded-lg focus:ring-1 focus:ring-tokyo-blue focus:border-tokyo-blue"
+                  placeholder="dd/mm/aaaa"
+                  required
                 />
-                {errors.start_date && <p className="text-red-500 text-sm mt-1">{errors.start_date}</p>}
               </div>
+              {errors.start_date && <p className="text-sm text-red-500">{errors.start_date}</p>}
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-tokyo-fg mb-2">
-                  Fecha de fin (opcional)
-                </label>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-tokyo-fgDark">Vencimiento (opcional)</label>
+              <div className="relative">
                 <input
                   type="date"
                   value={formData.end_date}
                   onChange={(e) => handleInputChange('end_date', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg bg-tokyo-bgHighlight text-tokyo-fg focus:outline-none focus:ring-2 focus:ring-tokyo-blue ${
-                    errors.end_date ? 'border-red-500' : 'border-tokyo-border'
-                  }`}
+                  className="w-full p-2 border border-tokyo-border bg-tokyo-bg text-tokyo-fg rounded-lg focus:ring-1 focus:ring-tokyo-blue focus:border-tokyo-blue"
+                  placeholder="dd/mm/aaaa"
                 />
-                {errors.end_date && <p className="text-red-500 text-sm mt-1">{errors.end_date}</p>}
               </div>
+              {errors.end_date && <p className="text-sm text-red-500">{errors.end_date}</p>}
             </div>
           </div>
 
-          {/* Settings */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-tokyo-fg flex items-center gap-2">
-              <Settings size={18} />
-              Configuración
-            </h3>
-            
-            <div>
-              <label className="block text-sm font-medium text-tokyo-fg mb-2">
-                Estado
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => handleInputChange('status', e.target.value as InvoiceStatus)}
-                className="w-full px-3 py-2 border border-tokyo-border rounded-lg bg-tokyo-bgHighlight text-tokyo-fg focus:outline-none focus:ring-2 focus:ring-tokyo-blue"
-              >
-                {statusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="auto_generate"
-                checked={formData.auto_generate}
-                onChange={(e) => handleInputChange('auto_generate', e.target.checked)}
-                className="w-4 h-4 text-tokyo-blue bg-tokyo-bgHighlight border-tokyo-border rounded focus:ring-tokyo-blue focus:ring-2"
-              />
-              <label htmlFor="auto_generate" className="text-sm text-tokyo-fg">
-                Generar pagos automáticamente
-              </label>
-            </div>
-            <p className="text-xs text-tokyo-fgDark">
-              Si está activado, se crearán automáticamente los pagos pendientes según la frecuencia configurada.
-            </p>
-          </div>
-
-          {/* Payment Status */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-tokyo-fg flex items-center gap-2">
-              <DollarSign size={18} />
-              Estado de Pago
-            </h3>
-            
-            <div className="flex rounded-lg overflow-hidden border border-tokyo-border">
-              {(['pending', 'paid'] as const).map((status, index, array) => {
-                const isSelected = formData.payment_status === status;
-                const isFirst = index === 0;
-                const isLast = index === array.length - 1;
-                
-                const baseClasses = 'flex-1 px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer';
-                const selectedClasses = 'text-white shadow-sm';
-                const unselectedClasses = 'text-tokyo-fgDark hover:bg-tokyo-bgHighlight';
-                
-                const colorClasses = {
-                  pending: 'bg-yellow-500 hover:bg-yellow-600',
-                  paid: 'bg-green-500 hover:bg-green-600'
-                };
-                
-                const statusText = {
-                  pending: 'Pendiente',
-                  paid: 'Pagado'
-                };
-                
+          {/* Estado de la factura */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-tokyo-fgDark">Estado de la factura</label>
+            <div className="flex gap-2">
+              {statusOptions.map(status => {
+                const isSelected = formData.status === status.value;
                 return (
                   <button
-                    key={status}
+                    key={status.value}
                     type="button"
-                    onClick={() => handleInputChange('payment_status', status)}
-                    className={`${baseClasses} ${isSelected ? `${selectedClasses} ${colorClasses[status]}` : unselectedClasses}`}
+                    onClick={() => handleInputChange('status', status.value)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isSelected
+                        ? 'bg-tokyo-blue text-white'
+                        : 'bg-tokyo-bgHighlight text-tokyo-fgDark hover:bg-tokyo-border'
+                    }`}
                   >
-                    {statusText[status]}
+                    {status.label}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Actions */}
+          {/* Estado de pago por defecto */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-tokyo-fgDark">Estado de pago por defecto</label>
+            <div className="flex gap-2">
+              {[{ value: 'pending', label: 'Pendiente' }, { value: 'paid', label: 'Pagado' }].map(status => {
+                const isSelected = formData.payment_status === status.value;
+                return (
+                  <button
+                    key={status.value}
+                    type="button"
+                    onClick={() => handleInputChange('payment_status', status.value)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isSelected
+                        ? 'bg-tokyo-blue text-white'
+                        : 'bg-tokyo-bgHighlight text-tokyo-fgDark hover:bg-tokyo-border'
+                    }`}
+                  >
+                    {status.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Generar pagos automáticamente */}
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="auto_generate"
+              checked={formData.auto_generate}
+              onChange={(e) => handleInputChange('auto_generate', e.target.checked)}
+              className="w-4 h-4 text-tokyo-blue bg-tokyo-bg border-tokyo-border rounded focus:ring-tokyo-blue focus:ring-2"
+            />
+            <label htmlFor="auto_generate" className="text-sm text-tokyo-fgDark">
+              Generar pagos automáticamente según la frecuencia
+            </label>
+          </div>
+
+          {/* Botones de acción */}
           <div className="flex justify-end gap-3 pt-4 border-t border-tokyo-border">
             <button
               type="button"
@@ -410,6 +403,13 @@ const RecurringInvoiceModal: React.FC<RecurringInvoiceModalProps> = ({
           </div>
         </form>
       </div>
+
+      {isClientModalOpen && (
+        <ClientModal 
+          onSave={handleSaveNewClient}
+          onClose={() => setIsClientModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

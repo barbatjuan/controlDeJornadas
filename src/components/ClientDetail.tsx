@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Calendar, DollarSign, FileText, BarChart2 } from 'lucide-react';
+import { ArrowLeft, Calendar, DollarSign, FileText, BarChart2, RefreshCw } from 'lucide-react';
 import { Client, WorkDay, ProjectPayment, RecurringPayment } from '../types';
 import { useWorkData } from '../contexts/WorkDataContext';
 
@@ -117,6 +117,16 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
     // Procesar pagos recurrentes
     clientRecurringPayments.forEach(payment => {
       processPayment(payment.amount || 0, payment.status, payment.due_date);
+    });
+    
+    // Procesar facturas recurrentes activas sin pagos generados
+    clientRecurringInvoices.forEach(invoice => {
+      const invoicePayments = recurringPayments.filter(payment => payment.recurring_invoice_id === invoice.id);
+      
+      // Si no hay pagos generados y la factura está activa, incluir el monto como pendiente
+      if (invoicePayments.length === 0 && invoice.status === 'active') {
+        processPayment(invoice.amount, 'pending', invoice.start_date);
+      }
     });
     
     // Calcular promedios mensuales
@@ -415,6 +425,119 @@ const ClientDetail: React.FC<ClientDetailProps> = ({ client, onBack }) => {
                             <p className="text-sm text-tokyo-fg">{new Date(project.start_date).toLocaleDateString('es-ES')}</p>
                           </div>
                         </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null;
+          })()}
+
+          {/* Facturas recurrentes del cliente */}
+          {(() => {
+            const clientRecurringInvoices = recurringInvoices.filter(invoice => invoice.client_id === client.id);
+            return clientRecurringInvoices.length > 0 ? (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-tokyo-fg mb-3">Facturas Recurrentes</h3>
+                <div className="space-y-3">
+                  {clientRecurringInvoices.map(invoice => {
+                    const invoicePayments = recurringPayments.filter(payment => payment.recurring_invoice_id === invoice.id);
+                    const totalPaid = invoicePayments.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
+                    const totalPending = invoicePayments.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0);
+                    const totalOverdue = invoicePayments.filter(p => p.status === 'overdue').reduce((sum, p) => sum + p.amount, 0);
+                    
+                    // Debug logs
+                    console.log('Invoice:', invoice.name, {
+                      id: invoice.id,
+                      amount: invoice.amount,
+                      status: invoice.status,
+                      paymentsCount: invoicePayments.length,
+                      totalPending,
+                      totalPaid,
+                      totalOverdue
+                    });
+                    
+                    // Si no hay pagos generados y la factura está activa, mostrar el monto como pendiente
+                    const displayPending = invoicePayments.length === 0 && invoice.status === 'active' 
+                      ? invoice.amount 
+                      : totalPending;
+                    const displayOverdue = invoicePayments.length === 0 ? 0 : totalOverdue;
+                    
+                    console.log('Display values:', {
+                      displayPending,
+                      displayOverdue,
+                      condition: invoicePayments.length === 0 && invoice.status === 'active'
+                    });
+                    
+                    
+                    const getRecurrenceLabel = (type: string) => {
+                      switch (type) {
+                        case 'monthly': return 'Mensual';
+                        case 'quarterly': return 'Trimestral';
+                        case 'biannual': return 'Semestral';
+                        case 'annual': return 'Anual';
+                        default: return type;
+                      }
+                    };
+                    
+                    return (
+                      <div key={invoice.id} className="bg-tokyo-bgHighlight p-4 rounded-lg border border-tokyo-border">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <RefreshCw size={16} className="text-tokyo-blue" />
+                              <h4 className="font-semibold text-tokyo-fg">{invoice.name}</h4>
+                            </div>
+                            {invoice.description && (
+                              <p className="text-sm text-tokyo-fgDark mt-1">{invoice.description}</p>
+                            )}
+                            <div className="flex items-center gap-4 mt-2 text-sm text-tokyo-fgDark">
+                              <span>Frecuencia: {getRecurrenceLabel(invoice.recurrence_type)}</span>
+                              <span>Monto: {formatCurrency(invoice.amount)}</span>
+                            </div>
+                          </div>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ${
+                            invoice.status === 'active' ? 'bg-green-500' :
+                            invoice.status === 'paused' ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}>
+                            {invoice.status === 'active' ? 'Activa' :
+                             invoice.status === 'paused' ? 'Pausada' : 'Cancelada'}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
+                          <div>
+                            <p className="text-xs text-tokyo-fgDark">Pagos generados</p>
+                            <p className="font-semibold text-tokyo-fg">{invoicePayments.length}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-tokyo-fgDark">Pagado</p>
+                            <p className="font-semibold text-green-500">{formatCurrency(totalPaid)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-tokyo-fgDark">Pendiente</p>
+                            <p className="font-semibold text-orange-500">{(() => {
+                              console.log('Formatting displayPending:', displayPending, typeof displayPending);
+                              const formatted = formatCurrency(displayPending);
+                              console.log('Formatted result:', formatted);
+                              return formatted;
+                            })()}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-tokyo-fgDark">Vencido</p>
+                            <p className="font-semibold text-red-500">{formatCurrency(displayOverdue)}</p>
+                          </div>
+                        </div>
+                        
+                        {/* Mostrar próximo vencimiento si está activa */}
+                        {invoice.status === 'active' && invoice.next_due_date && (
+                          <div className="mt-3 pt-3 border-t border-tokyo-border">
+                            <p className="text-xs text-tokyo-fgDark">Próximo vencimiento:</p>
+                            <p className="text-sm font-medium text-tokyo-fg">
+                              {new Date(invoice.next_due_date).toLocaleDateString('es-ES')}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

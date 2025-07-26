@@ -2,14 +2,21 @@ import React, { useState } from 'react';
 import { useWorkData } from '../contexts/WorkDataContext';
 import ClientForm from '../components/ClientForm';
 import ClientDetail from '../components/ClientDetail';
+import ClientModal from '../components/ClientModal';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 import { Client } from '../types';
-import { PlusCircle, Eye, Edit } from 'lucide-react';
+import { PlusCircle, Eye, Edit, Trash2 } from 'lucide-react';
 
 const Clients: React.FC = () => {
-  const { clients, addOrUpdateClient, isLoaded } = useWorkData();
+  const { clients, addOrUpdateClient, deleteClient, isLoaded } = useWorkData();
   const [isFormVisible, setIsFormVisible] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showClientDetail, setShowClientDetail] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    isOpen: false,
+    client: null as Client | null
+  });
 
   const handleSaveClient = async (clientData: Partial<Client>) => {
     const clientToSave = selectedClient ? { ...selectedClient, ...clientData } : clientData;
@@ -32,8 +39,40 @@ const Clients: React.FC = () => {
 
   const handleEditClient = (client: Client) => {
     setSelectedClient(client);
-    setIsFormVisible(true);
+    setIsModalOpen(true);
     setShowClientDetail(false);
+  };
+
+  const handleSaveClientModal = async (clientData: { id?: string; name: string; company?: string }) => {
+    await addOrUpdateClient(clientData);
+    setIsModalOpen(false);
+    setSelectedClient(null);
+  };
+
+  const handleDeleteClient = async (clientId: string) => {
+    const success = await deleteClient(clientId);
+    if (success) {
+      setIsModalOpen(false);
+      setSelectedClient(null);
+    }
+  };
+
+  const showDeleteConfirm = (client: Client) => {
+    setDeleteConfirm({
+      isOpen: true,
+      client: client
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteConfirm.client) {
+      await handleDeleteClient(deleteConfirm.client.id);
+    }
+    setDeleteConfirm({ isOpen: false, client: null });
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirm({ isOpen: false, client: null });
   };
 
   return (
@@ -102,6 +141,13 @@ const Clients: React.FC = () => {
                         >
                           <Edit size={18} />
                         </button>
+                        <button
+                          onClick={() => showDeleteConfirm(client)}
+                          className="p-2 text-red-600 hover:bg-red-600/10 rounded-full transition-colors"
+                          title="Eliminar cliente"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       </div>
                     </div>
                   </li>
@@ -111,6 +157,29 @@ const Clients: React.FC = () => {
           </div>
         </>
       )}
+      
+      {/* Modal para editar cliente */}
+      {isModalOpen && (
+        <ClientModal
+          client={selectedClient}
+          onSave={handleSaveClientModal}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedClient(null);
+          }}
+          onDelete={handleDeleteClient}
+        />
+      )}
+      
+      {/* Dialog de confirmación de eliminación */}
+      <DeleteConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title="Eliminar Cliente"
+        message="¿Estás seguro de que deseas eliminar este cliente?"
+        itemName={deleteConfirm.client ? `${deleteConfirm.client.name}${deleteConfirm.client.company ? ` (${deleteConfirm.client.company})` : ''}` : ''}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </div>
   );
 };

@@ -14,6 +14,7 @@ const RecurringInvoices: React.FC = () => {
     isLoaded, 
     addOrUpdateRecurringInvoice, 
     deleteRecurringInvoice,
+    fetchRecurringInvoices,
     updateRecurringPaymentStatus
   } = useWorkData();
   
@@ -89,6 +90,7 @@ const RecurringInvoices: React.FC = () => {
   const handleSaveInvoice = async (invoiceData: Partial<RecurringInvoice>) => {
     const invoiceToSave = selectedInvoice ? { ...selectedInvoice, ...invoiceData } : invoiceData;
     await addOrUpdateRecurringInvoice(invoiceToSave);
+    await fetchRecurringInvoices(); // Forzar la recarga de datos
     setIsModalOpen(false);
     setSelectedInvoice(null);
   };
