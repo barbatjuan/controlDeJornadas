@@ -95,11 +95,31 @@ const Projects: React.FC = () => {
 
   const handleSaveProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
     try {
+      console.log('Project data being saved:', projectData);
+      console.log('Status value:', projectData.status, 'Type:', typeof projectData.status);
+      
+      // Validar y limpiar el status explícitamente
+      const validStatuses = ['active', 'completed', 'paused', 'cancelled'] as const;
+      const cleanStatus = validStatuses.includes(projectData.status as any) ? projectData.status : 'active';
+      
+      // Limpiar y validar todos los datos
+      const cleanProjectData = {
+        name: projectData.name.trim(),
+        description: projectData.description?.trim() || null,
+        client_id: projectData.client_id || null,
+        total_amount: Number(projectData.total_amount) || 0,
+        status: cleanStatus,
+        start_date: projectData.start_date,
+        deadline: projectData.deadline || null
+      };
+      
+      console.log('Clean project data:', cleanProjectData);
+      
       if (selectedProject) {
         // Actualizar proyecto existente
         const { data, error } = await supabase
           .from('projects')
-          .update({ ...projectData, updated_at: new Date().toISOString() })
+          .update(cleanProjectData)
           .eq('id', selectedProject.id)
           .select()
           .single();
@@ -112,11 +132,7 @@ const Projects: React.FC = () => {
         // Crear nuevo proyecto
         const { data, error } = await supabase
           .from('projects')
-          .insert([{
-            ...projectData,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }])
+          .insert([cleanProjectData])
           .select()
           .single();
 
@@ -140,23 +156,27 @@ const Projects: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusColor = (status: ProjectStatus) => {
+  const getStatusColor = (status: ProjectStatus | string) => {
     switch (status) {
       case 'active': return 'text-green-400';
       case 'completed': return 'text-blue-400';
       case 'paused': return 'text-yellow-400';
       case 'cancelled': return 'text-red-400';
-      default: return 'text-gray-400';
+      case 'in_progress': return 'text-blue-400'; // Mismo color que completed
+      case 'pending': return 'text-yellow-400'; // Mismo color que paused
+      default: return 'text-green-400'; // Fallback como activo
     }
   };
 
-  const getStatusLabel = (status: ProjectStatus) => {
+  const getStatusLabel = (status: ProjectStatus | string) => {
     switch (status) {
       case 'active': return 'Activo';
       case 'completed': return 'Completado';
       case 'paused': return 'Pausado';
       case 'cancelled': return 'Cancelado';
-      default: return status;
+      case 'in_progress': return 'En Progreso'; // Manejo temporal para datos existentes
+      case 'pending': return 'Pendiente'; // Otro posible estado
+      default: return 'Activo'; // Fallback por defecto
     }
   };
 
@@ -169,7 +189,7 @@ const Projects: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-tokyo-bgDark space-y-6 p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>

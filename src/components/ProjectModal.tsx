@@ -75,6 +75,15 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, clients, onSave, o
       deadline: formData.deadline || null
     };
 
+    console.log('ProjectModal - formData:', formData);
+    console.log('ProjectModal - projectData:', projectData);
+    console.log('ProjectModal - status details:', {
+      original: formData.status,
+      final: projectData.status,
+      type: typeof projectData.status,
+      length: projectData.status?.length
+    });
+
     onSave(projectData);
   };
 

@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback, useContext, ReactNode } from 'react';
 import { toast } from 'sonner';
-import { WorkDay, MonthStats, Client, ProjectPayment, Project, RecurringInvoice, RecurringPayment } from '../types';
+import { WorkDay, MonthStats, Client, ProjectPayment, Project, RecurringInvoice, RecurringPayment, ProjectPhase } from '../types';
 import { supabase } from '../utils/supabase';
 import { formatDate } from '../utils/dateUtils';
 
@@ -11,6 +11,7 @@ interface IWorkDataContext {
   clients: Client[];
   projectPayments: ProjectPayment[];
   projects: Project[];
+  projectPhases: ProjectPhase[];
   recurringInvoices: RecurringInvoice[];
   recurringPayments: RecurringPayment[];
   selectedMonth: Date;
@@ -54,6 +55,7 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
   const [clients, setClients] = useState<Client[]>([]);
   const [projectPayments, setProjectPayments] = useState<ProjectPayment[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectPhases, setProjectPhases] = useState<ProjectPhase[]>([]);
   const [recurringInvoices, setRecurringInvoices] = useState<RecurringInvoice[]>([]);
   const [recurringPayments, setRecurringPayments] = useState<RecurringPayment[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(() => new Date());
@@ -105,6 +107,18 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
       setProjectPayments(data || []);
     } catch (error) {
       console.error('❌ [Context] Error loading project payments:', error);
+    }
+  }, []);
+
+  const fetchProjectPhases = useCallback(async () => {
+    console.log('📡 [Context] Fetching project phases from Supabase...');
+    try {
+      const { data, error } = await supabase.from('project_phases').select('*').order('project_id, order_index');
+      if (error) throw error;
+      console.log('✅ [Context] Loaded project phases from Supabase:', data);
+      setProjectPhases(data || []);
+    } catch (error) {
+      console.error('❌ [Context] Error loading project phases:', error);
     }
   }, []);
 
@@ -186,6 +200,7 @@ export const WorkDataProvider: React.FC<WorkDataProviderProps> = ({ children }) 
     fetchClients();
     fetchProjects();
     fetchProjectPayments();
+    fetchProjectPhases();
     fetchRecurringInvoices();
     fetchRecurringPayments();
   }, []); // Solo ejecutar una vez al montar el componente
@@ -1157,6 +1172,7 @@ const updateRecurringPaymentStatus = async (paymentId: string, status: 'paid' | 
     clients,
     projectPayments,
     projects,
+    projectPhases,
     recurringInvoices,
     recurringPayments,
     selectedMonth,

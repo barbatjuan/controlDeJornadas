@@ -56,7 +56,9 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, client, onEdit, onDe
       case 'completed': return 'bg-blue-500';
       case 'paused': return 'bg-yellow-500';
       case 'cancelled': return 'bg-red-500';
-      default: return 'bg-gray-500';
+      case 'in_progress': return 'bg-blue-500'; // Mismo color que completed
+      case 'pending': return 'bg-yellow-500'; // Mismo color que paused
+      default: return 'bg-green-500'; // Fallback como activo
     }
   };
 
@@ -66,7 +68,9 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, client, onEdit, onDe
       case 'completed': return 'Completado';
       case 'paused': return 'Pausado';
       case 'cancelled': return 'Cancelado';
-      default: return status;
+      case 'in_progress': return 'En Progreso'; // Manejo temporal para datos existentes
+      case 'pending': return 'Pendiente'; // Otro posible estado
+      default: return 'Activo'; // Fallback por defecto
     }
   };
 
